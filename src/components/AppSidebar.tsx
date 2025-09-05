@@ -27,6 +27,9 @@ import { useQuery } from "@tanstack/react-query";
 
 const navigationItems = [
   { title: "Projects", url: "/dashboard", icon: FolderOpen },
+  { title: "AI Assistant Chat", url: "/ai-chat", icon: Users },
+  { title: "Audio Cleanup", url: "/audio-cleanup", icon: Film },
+  { title: "VFX & Animation", url: "/vfx-animation", icon: Plus },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

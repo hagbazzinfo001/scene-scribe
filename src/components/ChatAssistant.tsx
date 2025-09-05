@@ -138,15 +138,25 @@ export function ChatAssistant({ projectId }: ChatAssistantProps) {
         <ScrollArea className="flex-1 px-4" ref={scrollAreaRef}>
           <div className="space-y-4 pb-4">
             {messages.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Bot className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">
-                  Ask me anything about your script breakdown, scheduling, or production planning!
+              <div className="text-center py-6 text-muted-foreground">
+                <Bot className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                <p className="text-sm mb-4">
+                  Your Nollywood AI Assistant for complete pre-production support!
                 </p>
+                <div className="bg-muted/50 p-3 rounded-lg text-xs space-y-2 text-left">
+                  <div><strong>🎬 Script Analysis:</strong> Scene breakdown, character analysis, dialogue review</div>
+                  <div><strong>📋 Props & Costumes:</strong> Detailed prop lists, costume requirements, makeup notes</div>
+                  <div><strong>📍 Locations:</strong> Scene locations, set requirements, logistics planning</div>
+                  <div><strong>📅 Scheduling:</strong> Shooting schedules, call sheets, timeline optimization</div>
+                  <div><strong>👥 Cast Management:</strong> Character casting, extras coordination, talent scheduling</div>
+                  <div><strong>💰 Budget Planning:</strong> Cost breakdowns, resource allocation, vendor recommendations</div>
+                  <div><strong>🎞️ Post-Production:</strong> Editing workflows, VFX planning, audio requirements</div>
+                </div>
                 <div className="mt-4 text-xs space-y-1">
-                  <p>Try asking:</p>
-                  <p>"Generate a shooting schedule for Scene 3"</p>
-                  <p>"List all props needed in Act 1"</p>
+                  <p className="font-medium">Try asking:</p>
+                  <p>"Generate a shooting schedule for all market scenes"</p>
+                  <p>"List all props needed for Scene 5"</p>
+                  <p>"What are the costume requirements for the main characters?"</p>
                 </div>
               </div>
             ) : (
