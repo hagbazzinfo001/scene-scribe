@@ -25,3 +25,9 @@ verify_jwt = false
 
 [functions.auto-rigger]
 verify_jwt = false
+
+[functions.audio-cleanup]
+verify_jwt = false
+
+[functions.roto-tracker]
+verify_jwt = false
