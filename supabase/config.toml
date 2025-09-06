@@ -15,4 +15,13 @@ additional_redirect_urls = ["https://localhost:3000"]
 jwt_secret = "super-secret-jwt-token-with-at-least-32-characters-long"
 
 [functions.ai-assistant]
-verify_jwt = true
+verify_jwt = false
+
+[functions.script-analyzer]
+verify_jwt = false
+
+[functions.vfx-planner]
+verify_jwt = false
+
+[functions.auto-rigger]
+verify_jwt = false

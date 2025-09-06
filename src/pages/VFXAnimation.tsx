@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Sparkles, Upload, Play, Download, Layers, Palette } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,23 +42,48 @@ export default function VFXAnimation() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Layers className="h-5 w-5" />
-                  Scene VFX Analysis
+                  Roto/Tracker AI Plugin
                 </CardTitle>
                 <CardDescription>
-                  AI analysis of scenes requiring visual effects
+                  Automatic rotoscoping and tracking analysis
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Scene Description</Label>
                   <Textarea 
-                    placeholder="Describe the scene that needs VFX (e.g., 'Character transforms into a spirit in the forest')"
+                    id="roto-scene"
+                    placeholder="Describe the scene for rotoscoping/tracking analysis..."
                     className="min-h-[100px]"
                   />
                 </div>
-                <Button className="w-full">
+                <Button 
+                  className="w-full"
+                  disabled={isGenerating}
+                  onClick={async () => {
+                    setIsGenerating(true);
+                    try {
+                      const sceneDesc = (document.getElementById('roto-scene') as HTMLTextAreaElement)?.value;
+                      if (!sceneDesc) return;
+                      
+                      const { data } = await supabase.functions.invoke('vfx-planner', {
+                        body: {
+                          sceneDescription: sceneDesc,
+                          vfxType: 'roto'
+                        }
+                      });
+                      
+                      console.log('Roto plan:', data);
+                      // Display results in UI (for now in console)
+                    } catch (error) {
+                      console.error('Error:', error);
+                    } finally {
+                      setIsGenerating(false);
+                    }
+                  }}
+                >
                   <Sparkles className="h-4 w-4 mr-2" />
-                  Analyze VFX Requirements
+                  {isGenerating ? "Analyzing..." : "Generate Roto/Track Plan"}
                 </Button>
               </CardContent>
             </Card>
@@ -131,29 +157,63 @@ export default function VFXAnimation() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Play className="h-5 w-5" />
-                  Character Animation
+                  Auto-Rigger
                 </CardTitle>
                 <CardDescription>
-                  AI-assisted character animation and rigging
+                  Automatic character rigging for uploaded 3D models
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Character Type</Label>
-                  <Input placeholder="e.g., Human, Spirit, Animal" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Animation Style</Label>
-                  <Input placeholder="e.g., Realistic, Stylized, Traditional" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Required Movements</Label>
-                  <Textarea 
-                    placeholder="Describe the animations needed"
-                    className="min-h-[80px]"
+                  <Input 
+                    id="char-type"
+                    placeholder="e.g., Human, Spirit, Animal" 
                   />
                 </div>
-                <Button className="w-full" disabled={isGenerating}>
+                <div className="space-y-2">
+                  <Label>Rig Complexity</Label>
+                  <Input 
+                    id="rig-complexity"
+                    placeholder="e.g., Basic, Advanced, Facial" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Upload Character File</Label>
+                  <Input
+                    id="file-upload"
+                    type="file"
+                    accept=".obj,.fbx,.blend"
+                  />
+                </div>
+                <Button 
+                  className="w-full" 
+                  disabled={isGenerating}
+                  onClick={async () => {
+                    setIsGenerating(true);
+                    try {
+                      const charType = (document.getElementById('char-type') as HTMLInputElement)?.value;
+                      const rigComplexity = (document.getElementById('rig-complexity') as HTMLInputElement)?.value;
+                      
+                      if (!charType || !rigComplexity) return;
+                      
+                      const { data } = await supabase.functions.invoke('auto-rigger', {
+                        body: {
+                          characterType: charType,
+                          animationStyle: 'Nollywood',
+                          rigComplexity: rigComplexity
+                        }
+                      });
+                      
+                      console.log('Rig plan:', data);
+                      // Display results in UI (for now in console)
+                    } catch (error) {
+                      console.error('Error:', error);
+                    } finally {
+                      setIsGenerating(false);
+                    }
+                  }}
+                >
                   {isGenerating ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
@@ -162,7 +222,7 @@ export default function VFXAnimation() {
                   ) : (
                     <>
                       <Play className="h-4 w-4 mr-2" />
-                      Generate Animation Plan
+                      Generate Auto-Rig Plan
                     </>
                   )}
                 </Button>
@@ -174,31 +234,62 @@ export default function VFXAnimation() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Palette className="h-5 w-5" />
-                  Motion Graphics
+                  Auto Color-Grade
                 </CardTitle>
                 <CardDescription>
-                  Create titles, transitions, and motion graphics
+                  AI-powered color grading preview and planning
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Graphics Type</Label>
-                  <Input placeholder="e.g., Title Card, Lower Third, Transition" />
+                  <Label>Scene Mood</Label>
+                  <Input 
+                    id="scene-mood"
+                    placeholder="e.g., Dramatic, Romantic, Action" 
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label>Text Content</Label>
-                  <Input placeholder="Enter text for graphics" />
+                  <Label>Upload Test Footage</Label>
+                  <Input
+                    id="footage-upload"
+                    type="file"
+                    accept=".mp4,.mov,.avi"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label>Style Requirements</Label>
+                  <Label>Style Notes</Label>
                   <Textarea 
-                    placeholder="Describe the visual style and mood"
+                    placeholder="Describe the desired look and feel..."
                     className="min-h-[80px]"
                   />
                 </div>
-                <Button className="w-full">
+                <Button 
+                  className="w-full"
+                  disabled={isGenerating}
+                  onClick={async () => {
+                    setIsGenerating(true);
+                    try {
+                      const sceneMood = (document.getElementById('scene-mood') as HTMLInputElement)?.value;
+                      if (!sceneMood) return;
+                      
+                      const { data } = await supabase.functions.invoke('vfx-planner', {
+                        body: {
+                          sceneDescription: `Scene with ${sceneMood} mood`,
+                          vfxType: 'color-grade'
+                        }
+                      });
+                      
+                      console.log('Color grade plan:', data);
+                      // Display results in UI (for now in console)
+                    } catch (error) {
+                      console.error('Error:', error);
+                    } finally {
+                      setIsGenerating(false);
+                    }
+                  }}
+                >
                   <Palette className="h-4 w-4 mr-2" />
-                  Create Motion Graphics
+                  {isGenerating ? "Analyzing..." : "Generate Color Grade Preview"}
                 </Button>
               </CardContent>
             </Card>

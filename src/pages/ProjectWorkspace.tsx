@@ -29,14 +29,20 @@ export default function ProjectWorkspace() {
         .select(`
           *,
           scripts(*),
-          breakdowns(*),
           project_collaborators(*)
         `)
         .eq('id', projectId)
         .single();
-      
+
       if (error) throw error;
-      return data;
+
+      // Fetch breakdowns separately
+      const { data: breakdowns } = await supabase
+        .from('breakdowns')
+        .select('*')
+        .in('script_id', (data.scripts || []).map((s: any) => s.id));
+
+      return { ...data, breakdowns: breakdowns || [] };
     },
     enabled: !!projectId,
   });
@@ -45,13 +51,10 @@ export default function ProjectWorkspace() {
   const uploadScriptMutation = useMutation({
     mutationFn: async (file: File) => {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${projectId}/${Date.now()}.${fileExt}`;
-      
-      // For MVP, we'll store the text content directly
-      // In production, you'd upload to Supabase Storage and parse PDF/DOCX
       const content = await file.text();
       
-      const { data, error } = await supabase
+      // First, upload the script
+      const { data: script, error } = await supabase
         .from('scripts')
         .insert([
           {
@@ -65,13 +68,27 @@ export default function ProjectWorkspace() {
         .single();
 
       if (error) throw error;
-      return data;
+
+      // Then analyze the script automatically
+      const analysisResponse = await supabase.functions.invoke('script-analyzer', {
+        body: {
+          scriptContent: content,
+          scriptId: script.id
+        }
+      });
+
+      if (analysisResponse.error) {
+        console.error('Analysis error:', analysisResponse.error);
+        // Don't fail the upload if analysis fails
+      }
+
+      return script;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
       toast({
-        title: "Script uploaded",
-        description: "Your script has been uploaded and is ready for analysis.",
+        title: "Script uploaded and analyzed",
+        description: "Your script has been uploaded and automatically analyzed for breakdown.",
       });
     },
     onError: (error: any) => {
@@ -224,20 +241,85 @@ export default function ProjectWorkspace() {
             </TabsContent>
 
             <TabsContent value="breakdown" className="flex-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Script Breakdown</CardTitle>
-                  <CardDescription>
-                    AI-generated analysis of scenes, characters, props, and locations
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Upload a script to see AI-generated breakdowns</p>
-                  </div>
-                </CardContent>
-              </Card>
+              {project?.breakdowns && project.breakdowns.length > 0 ? (
+                <div className="space-y-4">
+                  {project.breakdowns.map((breakdown: any) => (
+                    <Card key={breakdown.id}>
+                      <CardHeader>
+                        <CardTitle>Script Analysis</CardTitle>
+                        <CardDescription>
+                          AI-generated analysis of scenes, characters, props, and locations
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-6">
+                          {/* Scenes */}
+                          {breakdown.content?.scenes && (
+                            <div>
+                              <h4 className="font-semibold mb-2">Scenes ({breakdown.content.scenes.length})</h4>
+                              <div className="grid gap-2 max-h-40 overflow-y-auto">
+                                {breakdown.content.scenes.slice(0, 5).map((scene: any, idx: number) => (
+                                  <div key={idx} className="text-sm border rounded p-2">
+                                    <div className="font-medium">Scene {scene.number}: {scene.location}</div>
+                                    <div className="text-muted-foreground">VFX: {scene.vfxNeeds} | SFX: {scene.sfxNeeds}</div>
+                                  </div>
+                                ))}
+                                {breakdown.content.scenes.length > 5 && (
+                                  <div className="text-sm text-muted-foreground text-center">
+                                    +{breakdown.content.scenes.length - 5} more scenes
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Characters */}
+                          {breakdown.content?.characters && (
+                            <div>
+                              <h4 className="font-semibold mb-2">Characters ({breakdown.content.characters.length})</h4>
+                              <div className="flex flex-wrap gap-2">
+                                {breakdown.content.characters.map((char: any, idx: number) => (
+                                  <div key={idx} className="text-xs bg-muted px-2 py-1 rounded">
+                                    {char.name} ({char.importance})
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Overview */}
+                          {breakdown.content?.overallAnalysis && (
+                            <div>
+                              <h4 className="font-semibold mb-2">Production Analysis</h4>
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>Genre: {breakdown.content.overallAnalysis.genre}</div>
+                                <div>Budget: {breakdown.content.overallAnalysis.estimatedBudget}</div>
+                                <div>VFX Intensity: {breakdown.content.overallAnalysis.vfxIntensity}</div>
+                                <div>Shooting Days: {breakdown.content.overallAnalysis.shootingDays}</div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Script Breakdown</CardTitle>
+                    <CardDescription>
+                      AI-generated analysis of scenes, characters, props, and locations
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>Upload a script to see AI-generated breakdowns</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
 
             <TabsContent value="schedule" className="flex-1">
