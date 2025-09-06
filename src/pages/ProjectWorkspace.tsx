@@ -11,6 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChatAssistant } from '@/components/ChatAssistant';
+import { UsageAnalytics } from '@/components/UsageAnalytics';
+import { aiService } from '@/services/aiService';
 
 export default function ProjectWorkspace() {
   const { id: projectId } = useParams<{ id: string }>();
@@ -69,16 +71,11 @@ export default function ProjectWorkspace() {
 
       if (error) throw error;
 
-      // Then analyze the script automatically
-      const analysisResponse = await supabase.functions.invoke('script-analyzer', {
-        body: {
-          scriptContent: content,
-          scriptId: script.id
-        }
-      });
-
-      if (analysisResponse.error) {
-        console.error('Analysis error:', analysisResponse.error);
+      // Then analyze the script automatically using AI service
+      try {
+        await aiService.analyzeScript(content, script.id, projectId!);
+      } catch (error) {
+        console.error('Analysis error:', error);
         // Don't fail the upload if analysis fails
       }
 
@@ -164,6 +161,7 @@ export default function ProjectWorkspace() {
               <TabsTrigger value="scripts">Scripts</TabsTrigger>
               <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
               <TabsTrigger value="schedule">Schedule</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
             <TabsContent value="scripts" className="flex-1">
@@ -337,6 +335,10 @@ export default function ProjectWorkspace() {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="analytics" className="flex-1">
+              <UsageAnalytics />
             </TabsContent>
           </Tabs>
         </div>

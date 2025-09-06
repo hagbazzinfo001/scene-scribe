@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage_analytics: {
+        Row: {
+          cost_estimate: number
+          created_at: string
+          endpoint: string
+          error_type: string | null
+          id: string
+          model: string
+          project_id: string | null
+          provider: string
+          response_time_ms: number | null
+          success: boolean
+          tokens_used: number
+          user_id: string
+        }
+        Insert: {
+          cost_estimate?: number
+          created_at?: string
+          endpoint: string
+          error_type?: string | null
+          id?: string
+          model: string
+          project_id?: string | null
+          provider?: string
+          response_time_ms?: number | null
+          success?: boolean
+          tokens_used?: number
+          user_id?: string
+        }
+        Update: {
+          cost_estimate?: number
+          created_at?: string
+          endpoint?: string
+          error_type?: string | null
+          id?: string
+          model?: string
+          project_id?: string | null
+          provider?: string
+          response_time_ms?: number | null
+          success?: boolean
+          tokens_used?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_analytics_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       breakdowns: {
         Row: {
           content: Json
@@ -80,6 +133,68 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "chat_messages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          ai_model: string
+          ai_provider: string
+          completed_at: string | null
+          cost_estimate: number | null
+          created_at: string
+          error_message: string | null
+          id: string
+          input_data: Json
+          output_data: Json | null
+          processing_time_ms: number | null
+          project_id: string | null
+          status: string
+          tokens_used: number | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          ai_model?: string
+          ai_provider?: string
+          completed_at?: string | null
+          cost_estimate?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input_data: Json
+          output_data?: Json | null
+          processing_time_ms?: number | null
+          project_id?: string | null
+          status?: string
+          tokens_used?: number | null
+          type: string
+          user_id?: string
+        }
+        Update: {
+          ai_model?: string
+          ai_provider?: string
+          completed_at?: string | null
+          cost_estimate?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input_data?: Json
+          output_data?: Json | null
+          processing_time_ms?: number | null
+          project_id?: string | null
+          status?: string
+          tokens_used?: number | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"

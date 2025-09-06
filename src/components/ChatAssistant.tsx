@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { aiService } from '@/services/aiService';
 
 interface ChatMessage {
   id: string;
@@ -61,16 +62,8 @@ export function ChatAssistant({ projectId }: ChatAssistantProps) {
 
       if (messageError) throw messageError;
 
-      // Call AI assistant function
-      const { data: aiResponse, error: aiError } = await supabase.functions
-        .invoke('ai-assistant', {
-          body: {
-            message: userMessage,
-            projectId: projectId,
-          }
-        });
-
-      if (aiError) throw aiError;
+      // Call AI assistant using service layer
+      const { data: aiResponse } = await aiService.chatAssistant(userMessage, projectId);
 
       // Save AI response
       const { error: aiMessageError } = await supabase
@@ -79,7 +72,7 @@ export function ChatAssistant({ projectId }: ChatAssistantProps) {
           {
             project_id: projectId,
             user_id: user!.id,
-            message: aiResponse.response,
+            message: aiResponse.message || aiResponse.response || 'Sorry, I could not process your request.',
             is_ai_response: true,
           }
         ]);

@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { aiService } from '@/services/aiService';
+import { toast } from 'sonner';
 
 export default function VFXAnimation() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -64,19 +66,17 @@ export default function VFXAnimation() {
                     setIsGenerating(true);
                     try {
                       const sceneDesc = (document.getElementById('roto-scene') as HTMLTextAreaElement)?.value;
-                      if (!sceneDesc) return;
+                      if (!sceneDesc) {
+                        toast.error("Please describe the scene");
+                        return;
+                      }
                       
-                      const { data } = await supabase.functions.invoke('vfx-planner', {
-                        body: {
-                          sceneDescription: sceneDesc,
-                          vfxType: 'roto'
-                        }
-                      });
-                      
+                      const { data } = await aiService.planVFX(sceneDesc, 'roto', 'demo-project');
                       console.log('Roto plan:', data);
-                      // Display results in UI (for now in console)
+                      toast.success("Roto/tracking plan generated!");
                     } catch (error) {
                       console.error('Error:', error);
+                      toast.error("Failed to generate plan");
                     } finally {
                       setIsGenerating(false);
                     }
@@ -195,20 +195,17 @@ export default function VFXAnimation() {
                       const charType = (document.getElementById('char-type') as HTMLInputElement)?.value;
                       const rigComplexity = (document.getElementById('rig-complexity') as HTMLInputElement)?.value;
                       
-                      if (!charType || !rigComplexity) return;
+                      if (!charType || !rigComplexity) {
+                        toast.error("Please fill in character type and rig complexity");
+                        return;
+                      }
                       
-                      const { data } = await supabase.functions.invoke('auto-rigger', {
-                        body: {
-                          characterType: charType,
-                          animationStyle: 'Nollywood',
-                          rigComplexity: rigComplexity
-                        }
-                      });
-                      
+                      const { data } = await aiService.planRigging(charType, 'Nollywood', rigComplexity, 'demo-project');
                       console.log('Rig plan:', data);
-                      // Display results in UI (for now in console)
+                      toast.success("Auto-rigging plan generated!");
                     } catch (error) {
                       console.error('Error:', error);
+                      toast.error("Failed to generate rigging plan");
                     } finally {
                       setIsGenerating(false);
                     }
@@ -270,19 +267,17 @@ export default function VFXAnimation() {
                     setIsGenerating(true);
                     try {
                       const sceneMood = (document.getElementById('scene-mood') as HTMLInputElement)?.value;
-                      if (!sceneMood) return;
+                      if (!sceneMood) {
+                        toast.error("Please describe the scene mood");
+                        return;
+                      }
                       
-                      const { data } = await supabase.functions.invoke('vfx-planner', {
-                        body: {
-                          sceneDescription: `Scene with ${sceneMood} mood`,
-                          vfxType: 'color-grade'
-                        }
-                      });
-                      
+                      const { data } = await aiService.planVFX(`Scene with ${sceneMood} mood`, 'color-grade', 'demo-project');
                       console.log('Color grade plan:', data);
-                      // Display results in UI (for now in console)
+                      toast.success("Color grading plan generated!");
                     } catch (error) {
                       console.error('Error:', error);
+                      toast.error("Failed to generate color grading plan");
                     } finally {
                       setIsGenerating(false);
                     }
