@@ -11,6 +11,8 @@ import { FileUploadZone } from '@/components/FileUploadZone';
 import { MediaPreview } from '@/components/MediaPreview';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useFileUpload } from '@/hooks/useFileUpload';
 import { toast } from 'sonner';
 
 export default function VFXAnimation() {

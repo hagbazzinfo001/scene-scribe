@@ -38,11 +38,15 @@ export default function ProjectWorkspace() {
 
       if (error) throw error;
 
-      // Fetch breakdowns separately
-      const { data: breakdowns } = await supabase
-        .from('breakdowns')
-        .select('*')
-        .in('script_id', (data.scripts || []).map((s: any) => s.id));
+      // Fetch breakdowns separately if there are scripts
+      let breakdowns = [];
+      if (data.scripts && Array.isArray(data.scripts) && data.scripts.length > 0) {
+        const { data: breakdownData } = await supabase
+          .from('breakdowns')
+          .select('*')
+          .in('script_id', data.scripts.map((s: any) => s.id));
+        breakdowns = breakdownData || [];
+      }
 
       return { ...data, breakdowns: breakdowns || [] };
     },
@@ -203,7 +207,7 @@ export default function ProjectWorkspace() {
                 </Card>
 
                 {/* Scripts List */}
-                {project.scripts && project.scripts.length > 0 && (
+                {project.scripts && Array.isArray(project.scripts) && project.scripts.length > 0 && (
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Uploaded Scripts</h3>
                     {project.scripts.map((script: any) => (

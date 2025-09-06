@@ -57,15 +57,37 @@ export type Database = {
           tokens_used?: number
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "ai_usage_analytics_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
+      }
+      analysis_cache: {
+        Row: {
+          analysis_type: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          project_id: string | null
+          result: Json | null
+          script_hash: string | null
+        }
+        Insert: {
+          analysis_type?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          project_id?: string | null
+          result?: Json | null
+          script_hash?: string | null
+        }
+        Update: {
+          analysis_type?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          project_id?: string | null
+          result?: Json | null
+          script_hash?: string | null
+        }
+        Relationships: []
       }
       audio_files: {
         Row: {
@@ -146,6 +168,36 @@ export type Database = {
           },
         ]
       }
+      chat_history: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_ai_response: boolean | null
+          message: string
+          metadata: Json | null
+          project_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_ai_response?: boolean | null
+          message: string
+          metadata?: Json | null
+          project_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_ai_response?: boolean | null
+          message?: string
+          metadata?: Json | null
+          project_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           created_at: string | null
@@ -174,77 +226,64 @@ export type Database = {
           project_id?: string
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "chat_messages_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       jobs: {
         Row: {
-          ai_model: string
-          ai_provider: string
+          ai_model: string | null
+          ai_provider: string | null
           completed_at: string | null
           cost_estimate: number | null
-          created_at: string
+          created_at: string | null
           error_message: string | null
           id: string
           input_data: Json
           output_data: Json | null
           processing_time_ms: number | null
           project_id: string | null
-          status: string
+          status: string | null
           tokens_used: number | null
           type: string
+          updated_at: string | null
           user_id: string
         }
         Insert: {
-          ai_model?: string
-          ai_provider?: string
+          ai_model?: string | null
+          ai_provider?: string | null
           completed_at?: string | null
           cost_estimate?: number | null
-          created_at?: string
+          created_at?: string | null
           error_message?: string | null
           id?: string
           input_data: Json
           output_data?: Json | null
           processing_time_ms?: number | null
           project_id?: string | null
-          status?: string
+          status?: string | null
           tokens_used?: number | null
           type: string
-          user_id?: string
+          updated_at?: string | null
+          user_id: string
         }
         Update: {
-          ai_model?: string
-          ai_provider?: string
+          ai_model?: string | null
+          ai_provider?: string | null
           completed_at?: string | null
           cost_estimate?: number | null
-          created_at?: string
+          created_at?: string | null
           error_message?: string | null
           id?: string
           input_data?: Json
           output_data?: Json | null
           processing_time_ms?: number | null
           project_id?: string | null
-          status?: string
+          status?: string | null
           tokens_used?: number | null
           type?: string
+          updated_at?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "jobs_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -328,15 +367,7 @@ export type Database = {
           role?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "project_collaborators_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       projects: {
         Row: {
@@ -399,15 +430,7 @@ export type Database = {
           title?: string
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "scripts_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       user_settings: {
         Row: {
@@ -491,15 +514,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "vfx_assets_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       video_files: {
         Row: {

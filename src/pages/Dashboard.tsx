@@ -197,7 +197,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-1">
                     <Users className="h-4 w-4" />
-                    {project.project_collaborators?.[0]?.count || 0} collaborators
+                    {Array.isArray(project.project_collaborators) ? project.project_collaborators.length : 0} collaborators
                   </div>
                 </div>
               </CardContent>
