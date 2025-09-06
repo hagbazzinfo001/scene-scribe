@@ -9,9 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { aiService } from '@/services/aiService';
 import { toast } from 'sonner';
+import { useStorage } from '@/hooks/useStorage';
 
 export default function VFXAnimation() {
   const [isGenerating, setIsGenerating] = useState(false);
+  const { uploadFile, uploads } = useStorage();
+  const [selectedVideoUrl, setSelectedVideoUrl] = useState<string>('');
+  const [processedGradeUrl, setProcessedGradeUrl] = useState<string>('');
 
   return (
     <div className="container mx-auto p-6">
@@ -127,14 +131,14 @@ export default function VFXAnimation() {
                       }
                     } catch (error) {
                       console.error('Error:', error);
-                      toast.error("Failed to generate plan");
+                      toast.error("Failed to generate tracking data");
                     } finally {
                       setIsGenerating(false);
                     }
                   }}
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
-                  {isGenerating ? "Analyzing..." : "Generate Roto/Track Plan"}
+                  {isGenerating ? "Analyzing..." : "Generate Roto/Track Data"}
                 </Button>
               </CardContent>
             </Card>
@@ -156,10 +160,10 @@ export default function VFXAnimation() {
                     <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-4" />
                     <Label htmlFor="vfx-upload" className="cursor-pointer">
                       <div className="text-sm">
-                        <span className="text-primary font-medium">Upload VFX assets</span>
+                        <span className="text-primary font-medium">Upload video or image</span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        Images, videos, 3D models
+                        MP4, MOV, AVI, PNG, JPG
                       </div>
                     </Label>
                     <Input
@@ -167,7 +171,86 @@ export default function VFXAnimation() {
                       type="file"
                       className="hidden"
                       multiple
+                      accept="video/*,image/*"
+                      onChange={async (e) => {
+                        const files = Array.from(e.target.files || [])
+                        if (files.length === 0) return;
+                        try {
+                          const file = files[0]
+                          const url = await uploadFile(file, 'vfx-assets')
+                          if (url) {
+                            setSelectedVideoUrl(url)
+                            toast.success('Asset uploaded and ready')
+                          } else {
+                            toast.error('Upload failed')
+                          }
+                        } catch (err) {
+                          console.error('Upload error:', err)
+                          toast.error('Upload failed')
+                        }
+                      }}
                     />
+
+                    {selectedVideoUrl && (
+                      <div className="mt-4 space-y-3">
+                        <p className="text-xs break-all text-muted-foreground">Selected: {selectedVideoUrl}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <Button
+                            variant="secondary"
+                            onClick={async () => {
+                              if (!selectedVideoUrl) return;
+                              setIsGenerating(true)
+                              try {
+                                const { data, error } = await supabase.functions.invoke('roto-tracker', {
+                                  body: { videoUrl: selectedVideoUrl, trackingType: 'roto' }
+                                })
+                                if (error) throw error
+                                toast.success('Rotoscoping data generated')
+                                console.log('Roto data:', data)
+                              } catch (err: any) {
+                                console.error('Roto error:', err)
+                                toast.error(err.message || 'Failed to generate roto data')
+                              } finally {
+                                setIsGenerating(false)
+                              }
+                            }}
+                          >Generate Roto Data</Button>
+                          <Button
+                            onClick={async () => {
+                              if (!selectedVideoUrl) return;
+                              setIsGenerating(true)
+                              try {
+                                const { data, error } = await supabase.functions.invoke('roto-tracker', {
+                                  body: { videoUrl: selectedVideoUrl, trackingType: 'tracking' }
+                                })
+                                if (error) throw error
+                                toast.success('Tracking data generated')
+                                console.log('Tracking data:', data)
+                              } catch (err: any) {
+                                console.error('Tracking error:', err)
+                                toast.error(err.message || 'Failed to generate tracking data')
+                              } finally {
+                                setIsGenerating(false)
+                              }
+                            }}
+                          >Generate Tracking Data</Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {uploads.length > 0 && (
+                      <div className="mt-4 text-left">
+                        <p className="text-xs font-medium mb-2">Recent uploads</p>
+                        <ul className="text-xs space-y-1">
+                          {uploads.map((u, i) => (
+                            <li key={i} className="flex justify-between gap-2">
+                              <span className="truncate">{u.file.name}</span>
+                              <span className="opacity-70">{u.status}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -370,20 +453,18 @@ export default function VFXAnimation() {
                         return;
                       }
                       
-                      // Use Replicate for color grading with actual image processing model
-                      const { data, error } = await supabase.functions.invoke('audio-cleanup', {
+                      // Use Replicate color-grade edge function
+                      const { data, error } = await supabase.functions.invoke('color-grade', {
                         body: {
                           imageUrl: 'https://via.placeholder.com/800x600/cccccc/666666?text=Sample+Frame',
-                          prompt: `Apply ${sceneMood} color grading to this image. Make it cinematic and professional for Nollywood production.`,
-                          model: 'timbrooks/instruct-pix2pix',
-                          guidance_scale: 7.5,
-                          image_guidance_scale: 1.5,
-                          steps: 20
+                          prompt: `Apply ${sceneMood} color grading to this image. Make it cinematic and professional for Nollywood production.`
                         }
                       });
                       
                       if (data?.output) {
                         console.log('Color grade result:', data);
+                        const out = Array.isArray(data.output) ? data.output[0] : data.output;
+                        setProcessedGradeUrl(out);
                         toast.success("Color grading preview generated!");
                         
                         // Create results display with before/after
@@ -429,6 +510,17 @@ export default function VFXAnimation() {
                   <Palette className="h-4 w-4 mr-2" />
                   {isGenerating ? "Analyzing..." : "Generate Color Grade Preview"}
                 </Button>
+
+                {processedGradeUrl && (
+                  <div className="mt-4">
+                    <img src={processedGradeUrl} alt="Color graded preview" className="w-full rounded border" loading="lazy" />
+                    <div className="mt-2">
+                      <Button variant="outline" onClick={() => window.open(processedGradeUrl, '_blank')}>
+                        <Download className="h-4 w-4 mr-2" /> Download Graded Image
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

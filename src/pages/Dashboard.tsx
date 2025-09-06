@@ -48,7 +48,7 @@ export default function Dashboard() {
         .insert({
           name: projectData.name,
           description: projectData.description,
-          owner_id: user!.id // Keep this for now since trigger handles if null
+          owner_id: user!.id,
         })
         .select()
         .single();

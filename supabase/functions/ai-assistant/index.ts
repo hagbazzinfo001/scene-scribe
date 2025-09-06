@@ -24,6 +24,16 @@ serve(async (req) => {
 
     console.log('AI Assistant request:', { message, projectId });
 
+    if (!openAIApiKey) {
+      console.warn('OPENAI_API_KEY is not set. Returning fallback response.');
+      const fallback = `I'm ready to help with script breakdowns, schedules, props, and VFX planning. Ask me anything.\n\nTip: add your OpenAI API key in Supabase Edge Function secrets (OPENAI_API_KEY) to enable smart answers.`;
+      return new Response(JSON.stringify({ response: fallback }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+
+
     let project = null;
     let projectError = null;
 

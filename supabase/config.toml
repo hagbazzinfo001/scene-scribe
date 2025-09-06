@@ -31,3 +31,6 @@ verify_jwt = false
 
 [functions.roto-tracker]
 verify_jwt = false
+
+[functions.color-grade]
+verify_jwt = false
