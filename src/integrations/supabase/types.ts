@@ -67,6 +67,50 @@ export type Database = {
           },
         ]
       }
+      audio_files: {
+        Row: {
+          created_at: string | null
+          duration: number | null
+          file_size: number | null
+          file_url: string
+          filename: string
+          id: string
+          project_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          duration?: number | null
+          file_size?: number | null
+          file_url: string
+          filename: string
+          id?: string
+          project_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          duration?: number | null
+          file_size?: number | null
+          file_url?: string
+          filename?: string
+          id?: string
+          project_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audio_files_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       breakdowns: {
         Row: {
           content: Json
@@ -325,6 +369,103 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "scripts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vfx_assets: {
+        Row: {
+          created_at: string | null
+          file_size: number | null
+          file_type: string
+          file_url: string
+          filename: string
+          id: string
+          metadata: Json | null
+          project_id: string | null
+          thumbnail_url: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_size?: number | null
+          file_type: string
+          file_url: string
+          filename: string
+          id?: string
+          metadata?: Json | null
+          project_id?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          file_size?: number | null
+          file_type?: string
+          file_url?: string
+          filename?: string
+          id?: string
+          metadata?: Json | null
+          project_id?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vfx_assets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      video_files: {
+        Row: {
+          created_at: string | null
+          duration: number | null
+          file_size: number | null
+          file_url: string
+          filename: string
+          id: string
+          project_id: string | null
+          resolution: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          duration?: number | null
+          file_size?: number | null
+          file_url: string
+          filename: string
+          id?: string
+          project_id?: string | null
+          resolution?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          duration?: number | null
+          file_size?: number | null
+          file_url?: string
+          filename?: string
+          id?: string
+          project_id?: string | null
+          resolution?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_files_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
