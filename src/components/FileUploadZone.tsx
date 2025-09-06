@@ -7,7 +7,7 @@ import { useFileUpload } from '@/hooks/useFileUpload';
 
 interface FileUploadZoneProps {
   onFileUploaded?: (url: string, file: File) => void;
-  bucket?: 'uploads' | 'scripts' | 'vfx-assets' | 'audio-uploads';
+  bucket?: 'uploads' | 'scripts' | 'vfx-assets' | 'audio-uploads' | 'video-uploads';
   acceptedFileTypes?: string[];
   maxSizeMB?: number;
   multiple?: boolean;

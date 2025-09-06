@@ -246,6 +246,39 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          read: boolean | null
+          title: string
+          type: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          read?: boolean | null
+          title: string
+          type?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          read?: boolean | null
+          title?: string
+          type?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -375,6 +408,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_settings: {
+        Row: {
+          auto_save: boolean | null
+          created_at: string | null
+          email_notifications: boolean | null
+          id: string
+          language: string | null
+          notifications_enabled: boolean | null
+          settings_data: Json | null
+          theme: string | null
+          timezone: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          auto_save?: boolean | null
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          language?: string | null
+          notifications_enabled?: boolean | null
+          settings_data?: Json | null
+          theme?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          auto_save?: boolean | null
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          language?: string | null
+          notifications_enabled?: boolean | null
+          settings_data?: Json | null
+          theme?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       vfx_assets: {
         Row: {

@@ -37,11 +37,18 @@ export function useFileUpload() {
 
   const uploadFile = async (
     file: File, 
-    bucket: 'uploads' | 'scripts' | 'vfx-assets' | 'audio-uploads',
+    bucket: 'uploads' | 'scripts' | 'vfx-assets' | 'audio-uploads' | 'video-uploads',
     options?: FileUploadOptions
   ): Promise<string | null> => {
     try {
       setIsUploading(true);
+
+      // Get current user ID from Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('You must be logged in to upload files');
+        return null;
+      }
 
       // Validate file
       const validationError = validateFile(file, options);
@@ -61,10 +68,10 @@ export function useFileUpload() {
 
       setUploads(prev => [...prev, uploadProgress]);
 
-      // Generate unique file path
+      // Generate unique file path with user ID folder structure
       const timestamp = Date.now();
       const fileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      const filePath = `${fileName}`;
+      const filePath = `${user.id}/${fileName}`;
 
       // Upload to Supabase Storage
       const { data, error: uploadError } = await supabase.storage
@@ -104,8 +111,32 @@ export function useFileUpload() {
         upload.file === file ? { ...upload, progress: 100, status: 'complete', url: publicUrl } : upload
       ));
 
-      // Save to appropriate database table if tables exist
-      // Note: Database table access will be updated when types are regenerated
+      // Save to appropriate database table
+      if (bucket === 'audio-uploads') {
+        await supabase.from('audio_files').insert({
+          user_id: user.id,
+          filename: file.name,
+          file_url: publicUrl,
+          file_size: file.size,
+          duration: null, // Will be set by processing functions if needed
+        });
+      } else if (bucket === 'video-uploads') {
+        await supabase.from('video_files').insert({
+          user_id: user.id,
+          filename: file.name,
+          file_url: publicUrl,
+          file_size: file.size,
+          duration: null, // Will be set by processing functions if needed
+        });
+      } else if (bucket === 'vfx-assets') {
+        await supabase.from('vfx_assets').insert({
+          user_id: user.id,
+          filename: file.name,
+          file_url: publicUrl,
+          file_type: file.type,
+          file_size: file.size,
+        });
+      }
 
       options?.onSuccess?.(publicUrl);
       toast.success('File uploaded successfully!');
