@@ -78,14 +78,26 @@ export default function Dashboard() {
 
   const handleCreateProject = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!user) {
+      toast({
+        title: "You must be signed in",
+        description: "Please sign in to create a project.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsCreating(true);
 
     const formData = new FormData(e.currentTarget);
     const name = formData.get('name') as string;
     const description = formData.get('description') as string;
 
-    await createProjectMutation.mutateAsync({ name, description });
-    setIsCreating(false);
+    try {
+      await createProjectMutation.mutateAsync({ name, description });
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
