@@ -31,8 +31,7 @@ const Index = () => {
           </div>
           
           <p className="text-xl md:text-2xl text-muted-foreground mb-8 leading-relaxed">
-            Transform your film scripts into actionable production plans with AI-powered 
-            breakdowns, scheduling, and collaboration tools built for Nigerian filmmakers.
+            Lights, camera, AI — bring Nollywood stories to life faster with smart planning, VFX tools, and seamless collaboration.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">

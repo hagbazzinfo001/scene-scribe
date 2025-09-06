@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Save } from 'lucide-react';
+import { useTheme } from 'next-themes';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -43,6 +44,30 @@ export default function Settings() {
     },
     enabled: !!user,
   });
+
+  const { setTheme } = useTheme();
+
+  const [form, setForm] = useState({
+    theme: userSettings?.theme || 'system',
+    language: userSettings?.language || 'en',
+    timezone: userSettings?.timezone || 'UTC',
+    notifications_enabled: userSettings?.notifications_enabled ?? true,
+    email_notifications: userSettings?.email_notifications ?? true,
+    auto_save: userSettings?.auto_save ?? true,
+  });
+
+  useEffect(() => {
+    if (userSettings) {
+      setForm({
+        theme: userSettings.theme || 'system',
+        language: userSettings.language || 'en',
+        timezone: userSettings.timezone || 'UTC',
+        notifications_enabled: userSettings.notifications_enabled ?? true,
+        email_notifications: userSettings.email_notifications ?? true,
+        auto_save: userSettings.auto_save ?? true,
+      });
+    }
+  }, [userSettings]);
 
   // Update settings mutation  
   const updateSettingsMutation = useMutation({
@@ -102,7 +127,7 @@ export default function Settings() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Theme</Label>
-                <Select defaultValue={userSettings?.theme || 'system'}>
+                <Select value={form.theme} onValueChange={(v) => setForm({ ...form, theme: v })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -115,7 +140,7 @@ export default function Settings() {
               </div>
               <div className="space-y-2">
                 <Label>Language</Label>
-                <Select defaultValue={userSettings?.language || 'en'}>
+                <Select value={form.language} onValueChange={(v) => setForm({ ...form, language: v })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -133,25 +158,28 @@ export default function Settings() {
                   <Label>Notifications</Label>
                   <p className="text-sm text-muted-foreground">Receive app notifications</p>
                 </div>
-                <Switch defaultChecked={userSettings?.notifications_enabled} />
+                <Switch checked={form.notifications_enabled} onCheckedChange={(v) => setForm({ ...form, notifications_enabled: v })} />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Email Notifications</Label>
                   <p className="text-sm text-muted-foreground">Receive email updates</p>
                 </div>
-                <Switch defaultChecked={userSettings?.email_notifications} />
+                <Switch checked={form.email_notifications} onCheckedChange={(v) => setForm({ ...form, email_notifications: v })} />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Auto Save</Label>
                   <p className="text-sm text-muted-foreground">Automatically save work</p>
                 </div>
-                <Switch defaultChecked={userSettings?.auto_save} />
+                <Switch checked={form.auto_save} onCheckedChange={(v) => setForm({ ...form, auto_save: v })} />
               </div>
             </div>
 
-            <Button onClick={() => toast({ title: "Settings saved" })}>
+            <Button onClick={() => {
+              updateSettingsMutation.mutate(form);
+              setTheme(form.theme as any);
+            }}>
               <Save className="h-4 w-4 mr-2" />
               Save Settings
             </Button>

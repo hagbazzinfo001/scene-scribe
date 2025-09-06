@@ -39,9 +39,9 @@ serve(async (req) => {
 
     const { project_id, video_path, style_reference, options } = await req.json();
 
-    if (!project_id || !video_path || !style_reference) {
+    if (!video_path || !style_reference) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: project_id, video_path, style_reference' }),
+        JSON.stringify({ error: 'Missing required fields: video_path and style_reference' }),
         { status: 400, headers: corsHeaders }
       );
     }

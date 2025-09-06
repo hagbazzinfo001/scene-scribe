@@ -33,7 +33,7 @@ serve(async (req) => {
 
     // Use instruct-pix2pix for prompt-based color transformations
     const output = await replicate.run(
-      "timbrooks/instruct-pix2pix",
+      "fofr/flux-color",
       {
         input: {
           image: imageUrl,

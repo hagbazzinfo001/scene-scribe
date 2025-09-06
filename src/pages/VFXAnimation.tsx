@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 export default function VFXAnimation() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<{[key: string]: string}>({});
+  const [selectedTypes, setSelectedTypes] = useState<{[key: string]: string}>({});
   
   // VFX Planning States
   const [sceneDescription, setSceneDescription] = useState('');
@@ -49,6 +50,7 @@ export default function VFXAnimation() {
   // Handle file uploads for different purposes
   const handleFileUploaded = (url: string, file: File, purpose: string) => {
     setSelectedFiles(prev => ({ ...prev, [purpose]: url }));
+    setSelectedTypes(prev => ({ ...prev, [purpose]: file.type || '' }));
     toast.success(`${file.name} uploaded successfully!`);
   };
 
@@ -163,12 +165,24 @@ export default function VFXAnimation() {
 
     setIsProcessing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('color-grade', {
-        body: {
-          imageUrl: selectedFiles.colorGradeMedia,
-          prompt: `Apply ${colorGradeStyle} color grading style to this image. Enhance the cinematic look with professional color correction.`
-        }
-      });
+      let data, error;
+      if (selectedTypes.colorGradeMedia?.startsWith('video')) {
+        ({ data, error } = await supabase.functions.invoke('vfx-color-grade', {
+          body: {
+            project_id: null,
+            video_path: selectedFiles.colorGradeMedia,
+            style_reference: colorGradeStyle,
+            options: {}
+          }
+        }));
+      } else {
+        ({ data, error } = await supabase.functions.invoke('color-grade', {
+          body: {
+            imageUrl: selectedFiles.colorGradeMedia,
+            prompt: `Apply ${colorGradeStyle} color grading style to this image. Enhance the cinematic look with professional color correction.`
+          }
+        }));
+      }
 
       if (error) throw error;
       
@@ -492,7 +506,7 @@ export default function VFXAnimation() {
                     <div className="mt-2">
                       <MediaPreview 
                         url={selectedFiles.colorGradeMedia} 
-                        type={selectedFiles.colorGradeMedia.includes('video') ? 'video' : 'image'} 
+                        type={selectedTypes.colorGradeMedia?.startsWith('video') ? 'video' : 'image'} 
                       />
                     </div>
                   )}
@@ -522,18 +536,29 @@ export default function VFXAnimation() {
                       </p>
                     </div>
                     
-                    {colorGradeResults.output && (
-                      <div>
-                        <Label>Graded Result</Label>
-                        <MediaPreview url={colorGradeResults.output} type="image" />
-                        <Button variant="outline" size="sm" className="mt-2 w-full" asChild>
-                          <a href={colorGradeResults.output} target="_blank" rel="noopener noreferrer">
-                            <Download className="h-4 w-4 mr-2" />
-                            Download Graded Image
-                          </a>
-                        </Button>
-                      </div>
-                    )}
+                      {colorGradeResults.graded_video_url || colorGradeResults.preview_url ? (
+                        <div>
+                          <Label>Graded Video</Label>
+                          <MediaPreview url={colorGradeResults.preview_url || colorGradeResults.graded_video_url} type="video" />
+                          <Button variant="outline" size="sm" className="mt-2 w-full" asChild>
+                            <a href={colorGradeResults.graded_video_url || colorGradeResults.preview_url} target="_blank" rel="noopener noreferrer">
+                              <Download className="h-4 w-4 mr-2" />
+                              Download Graded Video
+                            </a>
+                          </Button>
+                        </div>
+                      ) : colorGradeResults.output ? (
+                        <div>
+                          <Label>Graded Result</Label>
+                          <MediaPreview url={(Array.isArray(colorGradeResults.output) ? colorGradeResults.output[0] : colorGradeResults.output)} type="image" />
+                          <Button variant="outline" size="sm" className="mt-2 w-full" asChild>
+                            <a href={(Array.isArray(colorGradeResults.output) ? colorGradeResults.output[0] : colorGradeResults.output)} target="_blank" rel="noopener noreferrer">
+                              <Download className="h-4 w-4 mr-2" />
+                              Download Graded Image
+                            </a>
+                          </Button>
+                        </div>
+                      ) : null}
                   </div>
                 ) : (
                   <p className="text-muted-foreground text-center py-8">

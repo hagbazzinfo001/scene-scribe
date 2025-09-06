@@ -28,8 +28,12 @@ export function useFileUpload() {
       return `File too large. Maximum size is ${options?.maxSizeMB || 100}MB`;
     }
 
-    if (options?.allowedTypes && !options.allowedTypes.some(type => file.type.startsWith(type))) {
-      return `File type not allowed. Allowed types: ${options.allowedTypes.join(', ')}`;
+    if (options?.allowedTypes && options.allowedTypes.length > 0 && !options.allowedTypes.includes('*')) {
+      const okByMime = options.allowedTypes.some(type => file.type.startsWith(type));
+      const okByExt = /\.(fbx|obj|glb|gltf|ma|mb|blend|stl|abc)$/i.test(file.name);
+      if (!okByMime && !okByExt) {
+        return `File type not allowed. Allowed types: ${options.allowedTypes.join(', ')}`;
+      }
     }
 
     return null;
