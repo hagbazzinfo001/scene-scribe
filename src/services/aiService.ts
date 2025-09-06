@@ -32,7 +32,7 @@ export class AIService {
   ): Promise<{ data: any; metrics: AIUsageMetrics }> {
     const startTime = Date.now();
     const provider = options.provider || 'openai';
-    const model = options.model || 'gpt-5-2025-08-07';
+    const model = options.model || 'gpt-4o-mini';
     
     try {
       console.log(`AI Service: Calling ${endpoint} with provider ${provider}`);
@@ -104,28 +104,28 @@ export class AIService {
     // TODO: Implement LLaMA routing when self-hosted is ready
     // For now, fallback to OpenAI
     console.log('LLaMA not implemented yet, falling back to OpenAI');
-    return this.callOpenAI(endpoint, data, 'gpt-5-2025-08-07');
+    return this.callOpenAI(endpoint, data, 'gpt-4o-mini');
   }
 
   private async callClaude(endpoint: string, data: any, model: string) {
     // TODO: Implement Claude routing
     console.log('Claude not implemented yet, falling back to OpenAI');
-    return this.callOpenAI(endpoint, data, 'gpt-5-2025-08-07');
+    return this.callOpenAI(endpoint, data, 'gpt-4o-mini');
   }
 
   private async callMistral(endpoint: string, data: any, model: string) {
     // TODO: Implement Mistral routing
     console.log('Mistral not implemented yet, falling back to OpenAI');
-    return this.callOpenAI(endpoint, data, 'gpt-5-2025-08-07');
+    return this.callOpenAI(endpoint, data, 'gpt-4o-mini');
   }
 
   private calculateCost(provider: string, model: string, tokens: number): number {
     // Cost estimation per 1K tokens (rough estimates)
     const costPer1kTokens: Record<string, Record<string, number>> = {
       openai: {
-        'gpt-5-2025-08-07': 0.01,
-        'gpt-4.1-2025-04-14': 0.03,
-        'gpt-4o-mini': 0.0001
+        'gpt-4o': 0.03,
+        'gpt-4o-mini': 0.0001,
+        'gpt-4': 0.03
       },
       llama: {
         'llama-3-8b': 0.0001,  // Estimated self-hosted cost

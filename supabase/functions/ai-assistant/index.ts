@@ -110,7 +110,7 @@ Please provide helpful, specific advice for this Nollywood film production. If t
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-2025-08-07',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -121,7 +121,8 @@ Please provide helpful, specific advice for this Nollywood film production. If t
             content: context
           }
         ],
-        max_completion_tokens: 1000,
+        max_tokens: 1000,
+        temperature: 0.7,
       }),
     });
 
