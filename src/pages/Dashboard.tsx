@@ -45,13 +45,11 @@ export default function Dashboard() {
     mutationFn: async (projectData: { name: string; description: string }) => {
       const { data, error } = await supabase
         .from('projects')
-        .insert([
-          {
-            name: projectData.name,
-            description: projectData.description,
-            owner_id: user!.id,
-          }
-        ])
+        .insert({
+          name: projectData.name,
+          description: projectData.description,
+          owner_id: user!.id // Keep this for now since trigger handles if null
+        })
         .select()
         .single();
 

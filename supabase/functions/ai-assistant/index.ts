@@ -24,24 +24,38 @@ serve(async (req) => {
 
     console.log('AI Assistant request:', { message, projectId });
 
-    // Get project context and scripts
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select(`
-        *,
-        scripts (
-          id,
-          title,
-          content,
-          parsed_data
-        ),
-        breakdowns (
-          type,
-          content
-        )
-      `)
-      .eq('id', projectId)
-      .single();
+    let project = null;
+    let projectError = null;
+
+    // Get project context and scripts (handle case where projectId is undefined)
+    if (projectId) {
+      const { data: projectData, error } = await supabase
+        .from('projects')
+        .select(`
+          *,
+          scripts (
+            id,
+            title,
+            content,
+            parsed_data
+          )
+        `)
+        .eq('id', projectId)
+        .single();
+
+      project = projectData;
+      projectError = error;
+
+      // Get breakdowns separately to avoid join issues
+      if (project && !projectError) {
+        const { data: breakdownsData } = await supabase
+          .from('breakdowns')
+          .select('type, content')
+          .in('script_id', project.scripts?.map((s: any) => s.id) || []);
+        
+        project.breakdowns = breakdownsData || [];
+      }
+    }
 
     if (projectError) {
       console.error('Project fetch error:', projectError);
@@ -51,11 +65,13 @@ serve(async (req) => {
     // Build context for AI
     let context = `You are an AI assistant specialized in Nollywood film pre-production. You help with script breakdown, scheduling, and production planning.
 
+${project ? `
 Project: ${project.name}
 Description: ${project.description || 'No description provided'}
+` : 'This is a general conversation not tied to a specific project.'}
 `;
 
-    if (project.scripts && project.scripts.length > 0) {
+    if (project?.scripts && project.scripts.length > 0) {
       context += `\nScripts in this project:\n`;
       project.scripts.forEach((script: any) => {
         context += `- ${script.title}\n`;
@@ -65,7 +81,7 @@ Description: ${project.description || 'No description provided'}
       });
     }
 
-    if (project.breakdowns && project.breakdowns.length > 0) {
+    if (project?.breakdowns && project.breakdowns.length > 0) {
       context += `\nExisting breakdowns:\n`;
       project.breakdowns.forEach((breakdown: any) => {
         context += `- ${breakdown.type}: ${JSON.stringify(breakdown.content, null, 2)}\n`;

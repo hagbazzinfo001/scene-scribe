@@ -354,9 +354,9 @@ export default function AudioCleanup() {
                     {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                     {isPlaying ? 'Pause' : 'Play'}
                   </Button>
-                  <Button onClick={downloadProcessedAudio} size="sm">
+                  <Button onClick={downloadProcessedAudio} size="sm" className="bg-green-600 hover:bg-green-700">
                     <Download className="h-4 w-4 mr-2" />
-                    Download
+                    Download Cleaned Audio
                   </Button>
                 </div>
                 <audio
