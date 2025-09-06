@@ -206,8 +206,18 @@ export default function VFXAnimation() {
                                   body: { videoUrl: selectedVideoUrl, trackingType: 'roto' }
                                 })
                                 if (error) throw error
-                                toast.success('Rotoscoping data generated')
                                 console.log('Roto data:', data)
+                                if (data?.output) {
+                                  const out = Array.isArray(data.output) ? data.output[0] : (data.output.url || data.output);
+                                  if (out) {
+                                    setRotoResultUrl(out)
+                                    toast.success('Roto/matte video ready!')
+                                  } else {
+                                    toast.success('Rotoscoping data generated')
+                                  }
+                                } else {
+                                  toast.success('Rotoscoping data generated')
+                                }
                               } catch (err: any) {
                                 console.error('Roto error:', err)
                                 toast.error(err.message || 'Failed to generate roto data')
@@ -236,6 +246,15 @@ export default function VFXAnimation() {
                             }}
                           >Generate Tracking Data</Button>
                         </div>
+                      </div>
+                    )}
+
+                    {rotoResultUrl && (
+                      <div className="mt-4 flex items-center gap-3">
+                        <Button variant="outline" onClick={() => window.open(rotoResultUrl, '_blank')}>
+                          <Download className="h-4 w-4 mr-2" /> Download Matte/Output
+                        </Button>
+                        <span className="text-xs text-muted-foreground break-all">{rotoResultUrl}</span>
                       </div>
                     )}
 
@@ -428,11 +447,11 @@ export default function VFXAnimation() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Upload Test Footage</Label>
+                  <Label>Upload Test Footage/Image</Label>
                   <Input
                     id="footage-upload"
                     type="file"
-                    accept=".mp4,.mov,.avi"
+                    accept=".mp4,.mov,.avi,.png,.jpg,.jpeg"
                   />
                 </div>
                 <div className="space-y-2">
@@ -524,9 +543,29 @@ export default function VFXAnimation() {
                 {processedGradeUrl && (
                   <div className="mt-4">
                     <img src={processedGradeUrl} alt="Color graded preview" className="w-full rounded border" loading="lazy" />
-                    <div className="mt-2">
+                    <div className="mt-2 flex gap-2">
                       <Button variant="outline" onClick={() => window.open(processedGradeUrl, '_blank')}>
                         <Download className="h-4 w-4 mr-2" /> Download Graded Image
+                      </Button>
+                      <Button variant="outline" onClick={async () => {
+                        try {
+                          const response = await fetch(processedGradeUrl);
+                          const blob = await response.blob();
+                          const url = window.URL.createObjectURL(blob);
+                          const link = document.createElement('a');
+                          link.href = url;
+                          link.download = `color-graded-${Date.now()}.jpg`;
+                          document.body.appendChild(link);
+                          link.click();
+                          document.body.removeChild(link);
+                          window.URL.revokeObjectURL(url);
+                          toast.success('Download completed');
+                        } catch (error) {
+                          console.error('Download error:', error);
+                          toast.error('Download failed');
+                        }
+                      }}>
+                        <Download className="h-4 w-4 mr-2" /> Save to System
                       </Button>
                     </div>
                   </div>

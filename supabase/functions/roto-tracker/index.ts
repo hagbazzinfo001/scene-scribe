@@ -24,7 +24,69 @@ serve(async (req) => {
     const body = await req.json()
     console.log("Roto-tracker request:", body)
 
-    // Generate motion tracking and rotoscoping analysis
+    // Status check support
+    if (body.predictionId) {
+      const prediction = await replicate.predictions.get(body.predictionId)
+      return new Response(JSON.stringify(prediction), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // If a video URL is provided, attempt real matting/roto using Replicate
+    if (body.videoUrl) {
+      try {
+        const trackingType = body.trackingType || 'roto';
+
+        // Basic auto-matting (background removal) for roto use-cases
+        if (trackingType === 'roto' || trackingType === 'matte') {
+          // Robust Video Matting
+          const output = await replicate.run(
+            "carrotcakestudio/robust-video-matting",
+            {
+              input: {
+                video: body.videoUrl,
+              }
+            }
+          )
+          console.log('Roto/matting output:', output)
+          return new Response(JSON.stringify({ output }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          })
+        }
+
+        // Placeholder for tracking-only analysis (no rendering)
+        if (trackingType === 'tracking') {
+          const analysis = {
+            trackingData: Array.from({ length: 150 }, (_, i) => ({
+              frame: i,
+              x: Math.random() * 1920,
+              y: Math.random() * 1080,
+              confidence: 0.8 + Math.random() * 0.2
+            })),
+            frameCount: 240,
+            processingTime: "12s",
+          }
+          return new Response(JSON.stringify(analysis), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          })
+        }
+
+        return new Response(JSON.stringify({ error: 'Unsupported trackingType' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        })
+      } catch (err: any) {
+        console.error('Roto processing error:', err)
+        return new Response(JSON.stringify({ error: err.message }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        })
+      }
+    }
+
+    // Fallback: synthetic analysis from description
     const trackingAnalysis = {
       trackingData: Array.from({ length: 150 }, (_, i) => ({
         frame: i,

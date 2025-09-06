@@ -13,6 +13,7 @@ import { useTheme } from 'next-themes';
 
 export default function Settings() {
   const { user } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [notifications, setNotifications] = useState({
     email: true,
     projectUpdates: true,
@@ -232,9 +233,9 @@ export default function Settings() {
                     Choose your preferred color scheme
                   </p>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => toast.success('Light theme applied')}>Light</Button>
-                    <Button variant="outline" size="sm" onClick={() => toast.success('Dark theme applied')}>Dark</Button>
-                    <Button variant="outline" size="sm" onClick={() => toast.success('System theme applied')}>System</Button>
+                    <Button variant={theme === 'light' ? 'default' : 'outline'} size="sm" onClick={() => setTheme('light')}>Light</Button>
+                    <Button variant={theme === 'dark' ? 'default' : 'outline'} size="sm" onClick={() => setTheme('dark')}>Dark</Button>
+                    <Button variant={theme === 'system' ? 'default' : 'outline'} size="sm" onClick={() => setTheme('system')}>System</Button>
                   </div>
                 </div>
                 
