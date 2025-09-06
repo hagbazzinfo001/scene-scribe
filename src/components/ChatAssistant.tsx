@@ -71,7 +71,6 @@ export function ChatAssistant({ projectId }: ChatAssistantProps) {
 
         if (messageError) throw messageError;
 
-        // Call AI assistant using service layer
         const { data: aiResponse } = await aiService.chatAssistant(userMessage, projectId);
 
         // Save AI response
@@ -81,7 +80,7 @@ export function ChatAssistant({ projectId }: ChatAssistantProps) {
             {
               project_id: projectId!,
               user_id: user!.id,
-              message: aiResponse.message || aiResponse.response || 'Sorry, I could not process your request.',
+              message: (aiResponse && (aiResponse.message || aiResponse.response)) ? (aiResponse.message || aiResponse.response) : 'I’m ready to help with script breakdowns, schedules, props, and VFX planning. Tip: add your OpenAI API key in Supabase Edge Function secrets (OPENAI_API_KEY) to enable smart answers.',
               is_ai_response: true,
             }
           ]);
@@ -104,7 +103,7 @@ export function ChatAssistant({ projectId }: ChatAssistantProps) {
 
         const aiMsg: ChatMessage = {
           id: (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)),
-          message: aiResponse.message || aiResponse.response || 'Sorry, I could not process your request.',
+          message: (aiResponse && (aiResponse.message || aiResponse.response)) ? (aiResponse.message || aiResponse.response) : 'I’m ready to help with script breakdowns, schedules, props, and VFX planning. Tip: add your OpenAI API key in Supabase Edge Function secrets (OPENAI_API_KEY) to enable smart answers.',
           is_ai_response: true,
           created_at: new Date().toISOString(),
           user_id: user?.id || 'system',

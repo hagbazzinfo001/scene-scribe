@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -58,7 +59,7 @@ export default function Settings() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Full Name</Label>
-                  <Input defaultValue={user?.user_metadata?.full_name || ''} />
+                  <Input id="full-name" defaultValue={user?.user_metadata?.full_name || ''} />
                 </div>
                 <div className="space-y-2">
                   <Label>Email</Label>
