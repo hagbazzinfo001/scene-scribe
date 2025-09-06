@@ -86,10 +86,10 @@ export default function AudioCleanup() {
 
     setIsProcessing(true);
     try {
-      // Upload audio file to storage
+      // Upload audio file to storage with proper error handling
       const audioUrl = await uploadFile(audioFile, 'audio-uploads');
       if (!audioUrl) {
-        throw new Error('Failed to upload audio file');
+        throw new Error('Failed to upload audio file - please check your connection and try again');
       }
 
       console.log('Uploaded audio URL:', audioUrl);

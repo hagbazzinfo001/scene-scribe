@@ -80,7 +80,10 @@ export default function Settings() {
                 <Label>Bio</Label>
                 <Input placeholder="Tell us about yourself and your work in Nollywood" />
               </div>
-              <Button onClick={() => toast.success('Profile updated successfully!')}>
+              <Button onClick={() => {
+                console.log('Profile save clicked');
+                toast.success('Profile updated successfully!');
+              }}>
                 Save Changes
               </Button>
             </CardContent>
@@ -160,7 +163,10 @@ export default function Settings() {
                   />
                 </div>
               </div>
-              <Button onClick={() => toast.success('Notification preferences saved!')}>
+              <Button onClick={() => {
+                console.log('Notifications saved:', notifications);
+                toast.success('Notification preferences saved!');
+              }}>
                 Save Preferences
               </Button>
             </CardContent>
