@@ -10,7 +10,8 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { useStorage } from '@/hooks/useStorage';
+import { useFileUpload } from '@/hooks/useFileUpload';
+import { MediaPreview } from '@/components/MediaPreview';
 
 export default function AudioCleanup() {
   const [isProcessing, setIsProcessing] = useState(false);

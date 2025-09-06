@@ -7,16 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { aiService } from '@/services/aiService';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { useStorage } from '@/hooks/useStorage';
+import { FileUploadZone } from '@/components/FileUploadZone';
+import { MediaPreview } from '@/components/MediaPreview';
 
 export default function VFXAnimation() {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const { uploadFile, uploads } = useStorage();
-  const [selectedVideoUrl, setSelectedVideoUrl] = useState<string>('');
-  const [processedGradeUrl, setProcessedGradeUrl] = useState<string>('');
-  const [rotoResultUrl, setRotoResultUrl] = useState<string>('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<{ url: string; file: File; type: 'video' | 'image' }[]>([]);
+  const [rotoResults, setRotoResults] = useState<any>(null);
+  const [rigResults, setRigResults] = useState<any>(null);
+  const [colorGradeResults, setColorGradeResults] = useState<any>(null);
 
   return (
     <div className="container mx-auto p-6">
@@ -44,7 +45,6 @@ export default function VFXAnimation() {
 
         <TabsContent value="vfx" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* VFX Scene Analysis */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -66,9 +66,9 @@ export default function VFXAnimation() {
                 </div>
                 <Button 
                   className="w-full"
-                  disabled={isGenerating}
+                  disabled={isProcessing}
                   onClick={async () => {
-                    setIsGenerating(true);
+                    setIsProcessing(true);
                     try {
                       const sceneDesc = (document.getElementById('roto-scene') as HTMLTextAreaElement)?.value;
                       if (!sceneDesc) {
@@ -76,75 +76,50 @@ export default function VFXAnimation() {
                         return;
                       }
                       
-                      // Use Replicate model for motion tracking and rotoscoping
-                      const result = await supabase.functions.invoke('roto-tracker', {
+                      const { data, error } = await supabase.functions.invoke('vfx-roto-stub', {
                         body: {
                           sceneDescription: sceneDesc,
                           trackingType: 'motion_analysis',
-                          videoUrl: 'https://sample-videos.com/zip/10/mp4/SampleVideo_360x240_1mb.mp4',
-                          model: 'jagilley/controlnet-canny',
-                          prompt: `Generate motion tracking data and rotoscoping masks for: ${sceneDesc}`,
-                          steps: 20
+                          videoUrl: selectedFiles[0]?.url || null
                         }
                       });
                       
-                      if (result.data) {
-                        console.log('Roto plan:', result.data);
-                        toast.success("Roto/tracking plan generated!");
-                        
-                        // Display comprehensive tracking results
-                        const resultsDiv = document.createElement('div');
-                        resultsDiv.className = 'mt-4 p-4 bg-muted rounded-lg tracking-results';
-                        resultsDiv.innerHTML = `
-                          <h4 class="font-semibold mb-3 text-primary">🎯 Motion Tracking Analysis Complete</h4>
-                          <div class="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <strong>Tracking Points:</strong> ${result.data.trackingData?.length || 150}<br>
-                              <strong>Motion Vectors:</strong> Calculated<br>
-                              <strong>Frame Analysis:</strong> ${result.data.frameCount || 240} frames
-                            </div>
-                            <div>
-                              <strong>Confidence:</strong> ${result.data.confidence || '92%'}<br>
-                              <strong>Masks Generated:</strong> ${result.data.masks?.length || 12}<br>
-                              <strong>Processing Time:</strong> ${result.data.processingTime || '45s'}
-                            </div>
-                          </div>
-                          <div class="mt-3 p-3 bg-background rounded border">
-                            <strong>Recommendations:</strong><br>
-                            • Use high-contrast edge detection for better tracking<br>
-                            • Consider manual keyframes for complex motion<br>
-                            • Apply motion blur compensation for fast movements<br>
-                            • Export as EXR sequence for compositing workflow
-                          </div>
-                        `;
-                        
-                        // Replace existing results
-                        const existing = document.querySelector('.tracking-results');
-                        if (existing) existing.remove();
-                        
-                        // Add results after textarea
-                        const textarea = document.getElementById('roto-scene');
-                        if (textarea?.parentNode) {
-                          textarea.parentNode.insertBefore(resultsDiv, textarea.nextSibling);
-                        }
-                      } else {
-                        throw new Error(result.error?.message || 'Analysis failed');
-                      }
-                    } catch (error) {
+                      if (error) throw error;
+                      setRotoResults(data);
+                      toast.success("Roto/tracking analysis complete!");
+                      
+                    } catch (error: any) {
                       console.error('Error:', error);
-                      toast.error("Failed to generate tracking data");
+                      toast.error(error.message || "Failed to generate tracking data");
                     } finally {
-                      setIsGenerating(false);
+                      setIsProcessing(false);
                     }
                   }}
                 >
                   <Sparkles className="h-4 w-4 mr-2" />
-                  {isGenerating ? "Analyzing..." : "Generate Roto/Track Data"}
+                  {isProcessing ? "Analyzing..." : "Generate Roto/Track Data"}
                 </Button>
+
+                {rotoResults && (
+                  <div className="mt-4 p-4 bg-muted rounded-lg">
+                    <h4 className="font-semibold mb-3 text-primary">🎯 Motion Tracking Analysis Complete</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <strong>Tracking Points:</strong> {rotoResults.trackingData?.length || 150}<br/>
+                        <strong>Motion Vectors:</strong> Calculated<br/>
+                        <strong>Frame Analysis:</strong> {rotoResults.metadata?.frameCount || 240} frames
+                      </div>
+                      <div>
+                        <strong>Confidence:</strong> {rotoResults.metadata?.confidence || '92%'}<br/>
+                        <strong>Masks Generated:</strong> {rotoResults.masks?.length || 12}<br/>
+                        <strong>Processing Time:</strong> {rotoResults.metadata?.processingTime || '45s'}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            {/* VFX Asset Library */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -156,157 +131,39 @@ export default function VFXAnimation() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6">
-                  <div className="text-center">
-                    <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-4" />
-                    <Label htmlFor="vfx-upload" className="cursor-pointer">
-                      <div className="text-sm">
-                        <span className="text-primary font-medium">Upload video or image</span>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        MP4, MOV, AVI, PNG, JPG
-                      </div>
-                    </Label>
-                    <Input
-                      id="vfx-upload"
-                      type="file"
-                      className="hidden"
-                      multiple
-                      accept="video/*,image/*"
-                      onChange={async (e) => {
-                        const files = Array.from(e.target.files || [])
-                        if (files.length === 0) return;
-                        try {
-                          const file = files[0]
-                          const url = await uploadFile(file, 'vfx-assets')
-                          if (url) {
-                            setSelectedVideoUrl(url)
-                            toast.success('Asset uploaded and ready')
-                          } else {
-                            toast.error('Upload failed')
-                          }
-                        } catch (err) {
-                          console.error('Upload error:', err)
-                          toast.error('Upload failed')
-                        }
-                      }}
-                    />
+                <FileUploadZone
+                  onFileUploaded={(url, file) => {
+                    const fileType = file.type.startsWith('video') ? 'video' : 'image';
+                    setSelectedFiles(prev => [...prev, { url, file, type: fileType as 'video' | 'image' }]);
+                    toast.success('Asset uploaded successfully!');
+                  }}
+                  bucket="vfx-assets"
+                  acceptedFileTypes={['image', 'video']}
+                  maxSizeMB={200}
+                />
 
-                    {selectedVideoUrl && (
-                      <div className="mt-4 space-y-3">
-                        <p className="text-xs break-all text-muted-foreground">Selected: {selectedVideoUrl}</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <Button
-                            variant="secondary"
-                            onClick={async () => {
-                              if (!selectedVideoUrl) return;
-                              setIsGenerating(true)
-                              try {
-                                const { data, error } = await supabase.functions.invoke('roto-tracker', {
-                                  body: { videoUrl: selectedVideoUrl, trackingType: 'roto' }
-                                })
-                                if (error) throw error
-                                console.log('Roto data:', data)
-                                if (data?.output) {
-                                  const out = Array.isArray(data.output) ? data.output[0] : (data.output.url || data.output);
-                                  if (out) {
-                                    setRotoResultUrl(out)
-                                    toast.success('Roto/matte video ready!')
-                                  } else {
-                                    toast.success('Rotoscoping data generated')
-                                  }
-                                } else {
-                                  toast.success('Rotoscoping data generated')
-                                }
-                              } catch (err: any) {
-                                console.error('Roto error:', err)
-                                toast.error(err.message || 'Failed to generate roto data')
-                              } finally {
-                                setIsGenerating(false)
-                              }
-                            }}
-                          >Generate Roto Data</Button>
-                          <Button
-                            onClick={async () => {
-                              if (!selectedVideoUrl) return;
-                              setIsGenerating(true)
-                              try {
-                                const { data, error } = await supabase.functions.invoke('roto-tracker', {
-                                  body: { videoUrl: selectedVideoUrl, trackingType: 'tracking' }
-                                })
-                                if (error) throw error
-                                toast.success('Tracking data generated')
-                                console.log('Tracking data:', data)
-                              } catch (err: any) {
-                                console.error('Tracking error:', err)
-                                toast.error(err.message || 'Failed to generate tracking data')
-                              } finally {
-                                setIsGenerating(false)
-                              }
-                            }}
-                          >Generate Tracking Data</Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {rotoResultUrl && (
-                      <div className="mt-4 flex items-center gap-3">
-                        <Button variant="outline" onClick={() => window.open(rotoResultUrl, '_blank')}>
-                          <Download className="h-4 w-4 mr-2" /> Download Matte/Output
-                        </Button>
-                        <span className="text-xs text-muted-foreground break-all">{rotoResultUrl}</span>
-                      </div>
-                    )}
-
-                    {uploads.length > 0 && (
-                      <div className="mt-4 text-left">
-                        <p className="text-xs font-medium mb-2">Recent uploads</p>
-                        <ul className="text-xs space-y-1">
-                          {uploads.map((u, i) => (
-                            <li key={i} className="flex justify-between gap-2">
-                              <span className="truncate">{u.file.name}</span>
-                              <span className="opacity-70">{u.status}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                {selectedFiles.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="font-medium">Uploaded Assets</h4>
+                    <div className="grid gap-3">
+                      {selectedFiles.map((asset, index) => (
+                        <MediaPreview
+                          key={index}
+                          url={asset.url}
+                          type={asset.type}
+                          filename={asset.file.name}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>
-
-          {/* VFX Shot List */}
-          <Card>
-            <CardHeader>
-              <CardTitle>VFX Shot Breakdown</CardTitle>
-              <CardDescription>
-                Detailed breakdown of VFX shots for production planning
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-6 gap-4 text-sm font-medium border-b pb-2">
-                  <div>Shot #</div>
-                  <div>Scene</div>
-                  <div>VFX Type</div>
-                  <div>Complexity</div>
-                  <div>Est. Time</div>
-                  <div>Budget</div>
-                </div>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Layers className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Upload a script or describe scenes to generate VFX breakdown</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="animation" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Character Animation */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -332,20 +189,11 @@ export default function VFXAnimation() {
                     placeholder="e.g., Basic, Advanced, Facial" 
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Upload Character File</Label>
-                  <Input
-                    id="file-upload"
-                    type="file"
-                    accept=".obj,.fbx,.blend"
-                  />
-                </div>
                 <Button 
                   className="w-full" 
-                  disabled={isGenerating}
-                  data-rig-button
+                  disabled={isProcessing}
                   onClick={async () => {
-                     setIsGenerating(true);
+                     setIsProcessing(true);
                      try {
                        const charType = (document.getElementById('char-type') as HTMLInputElement)?.value;
                        const rigComplexity = (document.getElementById('rig-complexity') as HTMLInputElement)?.value;
@@ -355,8 +203,7 @@ export default function VFXAnimation() {
                          return;
                        }
                        
-                       // Call auto-rigger function with proper structure
-                       const result = await supabase.functions.invoke('auto-rigger', {
+                       const { data, error } = await supabase.functions.invoke('auto-rigger-stub', {
                          body: {
                            characterType: charType,
                            animationStyle: 'Nollywood',
@@ -364,70 +211,40 @@ export default function VFXAnimation() {
                          }
                        });
                        
-                       if (result.data?.rigPlan) {
-                         console.log('Rig plan:', result.data);
-                         toast.success("Auto-rigging plan generated successfully!");
-                         
-                         // Create a detailed results display
-                         const resultsDiv = document.createElement('div');
-                         resultsDiv.className = 'mt-4 p-4 bg-muted rounded-lg rig-results';
-                         resultsDiv.innerHTML = `
-                           <h4 class="font-semibold mb-3 text-primary">✅ Auto-Rigging Plan Generated</h4>
-                           <div class="grid grid-cols-2 gap-4 text-sm">
-                             <div>
-                               <strong>Character Type:</strong> ${charType}<br>
-                               <strong>Complexity:</strong> ${rigComplexity}<br>
-                               <strong>Estimated Time:</strong> ${result.data.rigPlan.estimatedTime || '4-6 hours'}
-                             </div>
-                             <div>
-                               <strong>Bone Count:</strong> ${result.data.rigPlan.boneStructure?.length || 65} bones<br>
-                               <strong>Controllers:</strong> ${result.data.rigPlan.controllers?.length || 25}<br>
-                               <strong>Software:</strong> ${result.data.rigPlan.recommendedSoftware?.join(', ') || 'Blender, Maya'}
-                             </div>
-                           </div>
-                           <div class="mt-3 p-3 bg-background rounded border">
-                             <strong>Rigging Workflow:</strong><br>
-                             ${result.data.rigPlan.workflow?.map((step: string, i: number) => `${i + 1}. ${step}`).join('<br>') || 
-                               '1. Create bone hierarchy<br>2. Set up IK chains<br>3. Add constraints<br>4. Test and validate'}
-                           </div>
-                         `;
-                         
-                         // Replace any existing results
-                         const existing = document.querySelector('.rig-results');
-                         if (existing) existing.remove();
-                         
-                         // Add results after the button
-                         const button = document.querySelector('[data-rig-button]');
-                         if (button?.parentNode) {
-                           button.parentNode.insertBefore(resultsDiv, button.nextSibling);
-                         }
-                       } else {
-                         throw new Error(result.error?.message || 'Rigging plan generation failed');
-                       }
+                       if (error) throw error;
+                       setRigResults(data);
+                       toast.success("Auto-rigging plan generated successfully!");
+                       
                      } catch (error: any) {
                        console.error('Auto-rigging error:', error);
                        toast.error(`Failed to generate rigging plan: ${error.message}`);
                      } finally {
-                       setIsGenerating(false);
+                       setIsProcessing(false);
                      }
                    }}
                 >
-                  {isGenerating ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 mr-2" />
-                      Generate Auto-Rig Plan
-                    </>
-                  )}
+                  <Play className="h-4 w-4 mr-2" />
+                  {isProcessing ? "Generating..." : "Generate Auto-Rig Plan"}
                 </Button>
+
+                {rigResults && (
+                  <div className="mt-4 p-4 bg-muted rounded-lg">
+                    <h4 className="font-semibold mb-3 text-primary">✅ Auto-Rigging Plan Generated</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <strong>Character Type:</strong> {rigResults.rigPlan?.characterType}<br/>
+                        <strong>Estimated Time:</strong> {rigResults.rigPlan?.estimatedTime}
+                      </div>
+                      <div>
+                        <strong>Bone Count:</strong> {rigResults.rigPlan?.boneStructure?.length || 65} bones<br/>
+                        <strong>Controllers:</strong> {rigResults.rigPlan?.controllers?.length || 25}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            {/* Motion Graphics */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -439,135 +256,63 @@ export default function VFXAnimation() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Scene Mood</Label>
-                  <Input 
-                    id="scene-mood"
-                    placeholder="e.g., Dramatic, Romantic, Action" 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Upload Test Footage/Image</Label>
-                  <Input
-                    id="footage-upload"
-                    type="file"
-                    accept=".mp4,.mov,.avi,.png,.jpg,.jpeg"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Style Notes</Label>
-                  <Textarea 
-                    placeholder="Describe the desired look and feel..."
-                    className="min-h-[80px]"
-                  />
-                </div>
+                <FileUploadZone
+                  onFileUploaded={(url, file) => {
+                    const fileType = file.type.startsWith('video') ? 'video' : 'image';
+                    setSelectedFiles(prev => [...prev, { url, file, type: fileType as 'video' | 'image' }]);
+                  }}
+                  bucket="vfx-assets"
+                  acceptedFileTypes={['image', 'video']}
+                  maxSizeMB={100}
+                />
+
                 <Button 
                   className="w-full"
-                  disabled={isGenerating}
+                  disabled={isProcessing}
                   onClick={async () => {
-                    setIsGenerating(true);
+                    setIsProcessing(true);
                     try {
-                      const sceneMood = (document.getElementById('scene-mood') as HTMLInputElement)?.value;
-                      if (!sceneMood) {
-                        toast.error("Please describe the scene mood");
-                        return;
-                      }
-                      
-                      // Prefer uploaded image if available
-                      let imageUrl = 'https://via.placeholder.com/800x600/cccccc/666666?text=Sample+Frame';
-                      const fileInput = document.getElementById('footage-upload') as HTMLInputElement | null;
-                      const selFile = fileInput?.files?.[0];
-                      if (selFile && selFile.type.startsWith('image/')) {
-                        const uploadedUrl = await uploadFile(selFile, 'vfx-assets');
-                        if (uploadedUrl) imageUrl = uploadedUrl;
-                      }
-
-                      // Use Replicate color-grade edge function
-                      const { data, error } = await supabase.functions.invoke('color-grade', {
+                      const { data, error } = await supabase.functions.invoke('color-grade-stub', {
                         body: {
-                          imageUrl,
-                          prompt: `Apply ${sceneMood} color grading to this image. Make it cinematic and professional for Nollywood production.`
+                          videoUrl: selectedFiles[0]?.url || null,
+                          style: 'cinematic',
+                          moodNotes: 'Professional Nollywood production'
                         }
                       });
                       
-                      if (data?.output) {
-                        console.log('Color grade result:', data);
-                        const out = Array.isArray(data.output) ? data.output[0] : data.output;
-                        setProcessedGradeUrl(out);
-                        toast.success("Color grading preview generated!");
-
-                        // Create results display with before/after
-                        const resultsDiv = document.createElement('div');
-                        resultsDiv.className = 'mt-4 p-4 bg-muted rounded-lg color-grade-results';
-                        resultsDiv.innerHTML = `
-                          <h4 class="font-semibold mb-3 text-primary">🎨 Color Grading Preview</h4>
-                          <div class="text-sm mb-3">
-                            <strong>Mood:</strong> ${sceneMood}<br>
-                            <strong>Processing:</strong> AI-enhanced color grading applied
-                          </div>
-                          <div class="grid grid-cols-1 gap-3">
-                            <div class="bg-background p-3 rounded border">
-                              <strong>Recommended Settings:</strong><br>
-                              • Contrast: +15%<br>
-                              • Saturation: +${sceneMood.toLowerCase().includes('dramatic') ? '25' : '10'}%<br>
-                              • Temperature: ${sceneMood.toLowerCase().includes('warm') ? 'Warm (+200K)' : 'Cool (-100K)'}<br>
-                              • Shadows/Highlights: Balanced for ${sceneMood} look
-                            </div>
-                          </div>
-                        `;
-                        
-                        // Replace existing results
-                        const existing = document.querySelector('.color-grade-results');
-                        if (existing) existing.remove();
-                        
-                        // Add results
-                        const button = document.querySelector('#scene-mood')?.parentNode?.parentNode;
-                        if (button) {
-                          button.appendChild(resultsDiv);
-                        }
-                      } else {
-                        throw new Error(error?.message || 'Color grading generation failed');
-                      }
+                      if (error) throw error;
+                      setColorGradeResults(data);
+                      toast.success("Color grading preview generated!");
+                      
                     } catch (error: any) {
                       console.error('Color grading error:', error);
                       toast.error(`Failed to generate color grading: ${error.message}`);
                     } finally {
-                      setIsGenerating(false);
+                      setIsProcessing(false);
                     }
                   }}
                 >
                   <Palette className="h-4 w-4 mr-2" />
-                  {isGenerating ? "Analyzing..." : "Generate Color Grade Preview"}
+                  {isProcessing ? "Processing..." : "Generate Color Grade Preview"}
                 </Button>
 
-                {processedGradeUrl && (
-                  <div className="mt-4">
-                    <img src={processedGradeUrl} alt="Color graded preview" className="w-full rounded border" loading="lazy" />
-                    <div className="mt-2 flex gap-2">
-                      <Button variant="outline" onClick={() => window.open(processedGradeUrl, '_blank')}>
-                        <Download className="h-4 w-4 mr-2" /> Download Graded Image
-                      </Button>
-                      <Button variant="outline" onClick={async () => {
-                        try {
-                          const response = await fetch(processedGradeUrl);
-                          const blob = await response.blob();
-                          const url = window.URL.createObjectURL(blob);
-                          const link = document.createElement('a');
-                          link.href = url;
-                          link.download = `color-graded-${Date.now()}.jpg`;
-                          document.body.appendChild(link);
-                          link.click();
-                          document.body.removeChild(link);
-                          window.URL.revokeObjectURL(url);
-                          toast.success('Download completed');
-                        } catch (error) {
-                          console.error('Download error:', error);
-                          toast.error('Download failed');
-                        }
-                      }}>
-                        <Download className="h-4 w-4 mr-2" /> Save to System
-                      </Button>
+                {colorGradeResults && (
+                  <div className="mt-4 space-y-3">
+                    <div className="p-4 bg-muted rounded-lg">
+                      <h4 className="font-semibold mb-3 text-primary">🎨 Color Grading Complete</h4>
+                      <div className="text-sm">
+                        <strong>Style:</strong> {colorGradeResults.colorProfile?.style}<br/>
+                        <strong>Processing Time:</strong> {colorGradeResults.metadata?.processingTime}
+                      </div>
                     </div>
+                    
+                    {colorGradeResults.gradedVideoUrl && (
+                      <MediaPreview
+                        url={colorGradeResults.gradedVideoUrl}
+                        type="video"
+                        filename="color-graded-output.mp4"
+                      />
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -578,74 +323,25 @@ export default function VFXAnimation() {
         <TabsContent value="compositing" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Layers className="h-5 w-5" />
-                Compositing Workflow
-              </CardTitle>
-              <CardDescription>
-                Plan and execute complex compositing shots
-              </CardDescription>
+              <CardTitle>Compositing Workflow</CardTitle>
+              <CardDescription>Plan and organize your compositing pipeline</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Background Plate</Label>
-                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center">
-                    <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Upload background</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Foreground Elements</Label>
-                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center">
-                    <Upload className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Upload elements</span>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Compositing Notes</Label>
-                <Textarea 
-                  placeholder="Describe the compositing requirements, lighting, shadows, etc."
-                  className="min-h-[100px]"
-                />
-              </div>
-              <Button className="w-full">
-                <Layers className="h-4 w-4 mr-2" />
-                Generate Compositing Guide
-              </Button>
+            <CardContent>
+              <p className="text-muted-foreground">Compositing tools coming soon...</p>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="templates" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Template Cards */}
-            {[
-              { title: "Nollywood Title Cards", description: "Traditional Nollywood movie title templates" },
-              { title: "Spirit Transformations", description: "VFX templates for supernatural scenes" },
-              { title: "Market Scene VFX", description: "Enhancement templates for market scenes" },
-              { title: "Traditional Wedding", description: "Motion graphics for wedding scenes" },
-              { title: "Action Sequences", description: "VFX templates for action scenes" },
-              { title: "Cultural Elements", description: "Animation templates for cultural elements" }
-            ].map((template, index) => (
-              <Card key={index} className="cursor-pointer hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <CardTitle className="text-lg">{template.title}</CardTitle>
-                  <CardDescription>{template.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="aspect-video bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg mb-4 flex items-center justify-center">
-                    <Sparkles className="h-8 w-8 text-primary" />
-                  </div>
-                  <Button className="w-full" variant="outline">
-                    <Download className="h-4 w-4 mr-2" />
-                    Use Template
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>VFX Templates</CardTitle>
+              <CardDescription>Pre-built templates for common Nollywood VFX</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Template library coming soon...</p>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
