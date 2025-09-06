@@ -28,61 +28,96 @@ export function ChatAssistant({ projectId }: ChatAssistantProps) {
   const queryClient = useQueryClient();
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  // Fetch chat messages
-  const { data: messages = [] } = useQuery({
+  const isValidUUID = (id?: string) =>
+    !!id && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
+  const inProjectContext = isValidUUID(projectId);
+
+  // Fetch chat messages only in project context
+  const { data: dbMessages = [] } = useQuery({
     queryKey: ['chat-messages', projectId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('chat_messages')
         .select('*')
-        .eq('project_id', projectId)
+        .eq('project_id', projectId!)
         .order('created_at', { ascending: true });
       
       if (error) throw error;
       return data as ChatMessage[];
     },
+    enabled: inProjectContext,
   });
 
-  // Send message mutation
+  const messages = inProjectContext ? dbMessages : localMessages;
+
+// Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (userMessage: string) => {
-      // Save user message
-      const { error: messageError } = await supabase
-        .from('chat_messages')
-        .insert([
-          {
-            project_id: projectId,
-            user_id: user!.id,
-            message: userMessage,
-            is_ai_response: false,
-          }
-        ]);
+      if (inProjectContext) {
+        // Persisted project chat
+        const { error: messageError } = await supabase
+          .from('chat_messages')
+          .insert([
+            {
+              project_id: projectId!,
+              user_id: user!.id,
+              message: userMessage,
+              is_ai_response: false,
+            }
+          ]);
 
-      if (messageError) throw messageError;
+        if (messageError) throw messageError;
 
-      // Call AI assistant using service layer
-      const { data: aiResponse } = await aiService.chatAssistant(userMessage, projectId);
+        // Call AI assistant using service layer
+        const { data: aiResponse } = await aiService.chatAssistant(userMessage, projectId);
 
-      // Save AI response
-      const { error: aiMessageError } = await supabase
-        .from('chat_messages')
-        .insert([
-          {
-            project_id: projectId,
-            user_id: user!.id,
-            message: aiResponse.message || aiResponse.response || 'Sorry, I could not process your request.',
-            is_ai_response: true,
-          }
-        ]);
+        // Save AI response
+        const { error: aiMessageError } = await supabase
+          .from('chat_messages')
+          .insert([
+            {
+              project_id: projectId!,
+              user_id: user!.id,
+              message: aiResponse.message || aiResponse.response || 'Sorry, I could not process your request.',
+              is_ai_response: true,
+            }
+          ]);
 
-      if (aiMessageError) throw aiMessageError;
+        if (aiMessageError) throw aiMessageError;
 
-      return aiResponse;
+        return aiResponse;
+      } else {
+        // Local, non-persistent chat (e.g., global chat)
+        const userMsg: ChatMessage = {
+          id: (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)),
+          message: userMessage,
+          is_ai_response: false,
+          created_at: new Date().toISOString(),
+          user_id: user?.id || 'anon',
+        };
+        setLocalMessages((prev) => [...prev, userMsg]);
+
+        const { data: aiResponse } = await aiService.chatAssistant(userMessage, undefined);
+
+        const aiMsg: ChatMessage = {
+          id: (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)),
+          message: aiResponse.message || aiResponse.response || 'Sorry, I could not process your request.',
+          is_ai_response: true,
+          created_at: new Date().toISOString(),
+          user_id: user?.id || 'system',
+        };
+        setLocalMessages((prev) => [...prev, aiMsg]);
+
+        return aiResponse;
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat-messages', projectId] });
+      if (inProjectContext) {
+        queryClient.invalidateQueries({ queryKey: ['chat-messages', projectId] });
+      }
     },
     onError: (error: any) => {
       toast({

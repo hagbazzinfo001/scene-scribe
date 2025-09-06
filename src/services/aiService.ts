@@ -145,6 +145,12 @@ export class AIService {
     projectId?: string
   ) {
     try {
+      // Ensure we never send an invalid UUID to the DB
+      const isValidUUID = (id?: string) =>
+        !!id && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
+
+      const safeProjectId = isValidUUID(projectId) ? projectId : null;
+
       await supabase.from('ai_usage_analytics').insert({
         provider,
         model,
@@ -154,7 +160,7 @@ export class AIService {
         response_time_ms: metrics.responseTimeMs,
         success: metrics.success,
         error_type: metrics.errorType,
-        project_id: projectId
+        project_id: safeProjectId
       });
     } catch (error) {
       console.error('Failed to track AI usage:', error);
@@ -174,7 +180,7 @@ export class AIService {
     return this.callAI('auto-rigger', { characterType, animationStyle, rigComplexity, projectId }, options);
   }
 
-  async chatAssistant(message: string, projectId: string, options?: AIServiceOptions) {
+  async chatAssistant(message: string, projectId?: string, options?: AIServiceOptions) {
     return this.callAI('ai-assistant', { message, projectId }, options);
   }
 
