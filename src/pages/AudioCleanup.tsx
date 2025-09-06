@@ -145,15 +145,28 @@ export default function AudioCleanup() {
     }
   };
 
-  const downloadProcessedAudio = () => {
+  const downloadProcessedAudio = async () => {
     if (processedAudioUrl) {
-      const link = document.createElement('a');
-      link.href = processedAudioUrl;
-      link.download = `cleaned-audio-${Date.now()}.${outputFormat}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toast.success('Download started');
+      try {
+        const response = await fetch(processedAudioUrl);
+        if (!response.ok) throw new Error('Failed to fetch audio');
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `cleaned-audio-${Date.now()}.${outputFormat}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        toast.success('Download completed');
+      } catch (error) {
+        console.error('Download error:', error);
+        toast.error('Download failed - trying direct link');
+        // Fallback to direct link
+        window.open(processedAudioUrl, '_blank');
+      }
     }
   };
 

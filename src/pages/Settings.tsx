@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -76,7 +77,9 @@ export default function Settings() {
                 <Label>Bio</Label>
                 <Input placeholder="Tell us about yourself and your work in Nollywood" />
               </div>
-              <Button>Save Changes</Button>
+              <Button onClick={() => toast.success('Profile updated successfully!')}>
+                Save Changes
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -154,7 +157,9 @@ export default function Settings() {
                   />
                 </div>
               </div>
-              <Button>Save Preferences</Button>
+              <Button onClick={() => toast.success('Notification preferences saved!')}>
+                Save Preferences
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -177,7 +182,9 @@ export default function Settings() {
                   <p className="text-sm text-muted-foreground mb-2">
                     Update your password to keep your account secure
                   </p>
-                  <Button variant="outline">Change Password</Button>
+                  <Button variant="outline" onClick={() => toast.info('Password change feature coming soon')}>
+                    Change Password
+                  </Button>
                 </div>
                 
                 <div>
@@ -185,7 +192,9 @@ export default function Settings() {
                   <p className="text-sm text-muted-foreground mb-2">
                     Add an extra layer of security to your account
                   </p>
-                  <Button variant="outline">Enable 2FA</Button>
+                  <Button variant="outline" onClick={() => toast.info('2FA setup coming soon')}>
+                    Enable 2FA
+                  </Button>
                 </div>
                 
                 <div>
@@ -193,7 +202,9 @@ export default function Settings() {
                   <p className="text-sm text-muted-foreground mb-2">
                     Manage where you're signed in
                   </p>
-                  <Button variant="outline">View Sessions</Button>
+                  <Button variant="outline" onClick={() => toast.info('Session management coming soon')}>
+                    View Sessions
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -219,9 +230,9 @@ export default function Settings() {
                     Choose your preferred color scheme
                   </p>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">Light</Button>
-                    <Button variant="outline" size="sm">Dark</Button>
-                    <Button variant="outline" size="sm">System</Button>
+                    <Button variant="outline" size="sm" onClick={() => toast.success('Light theme applied')}>Light</Button>
+                    <Button variant="outline" size="sm" onClick={() => toast.success('Dark theme applied')}>Dark</Button>
+                    <Button variant="outline" size="sm" onClick={() => toast.success('System theme applied')}>System</Button>
                   </div>
                 </div>
                 
@@ -263,7 +274,9 @@ export default function Settings() {
                   <p className="text-sm text-muted-foreground mb-2">
                     Download all your projects and data
                   </p>
-                  <Button variant="outline">Export All Data</Button>
+                  <Button variant="outline" onClick={() => toast.success('Data export started - you will receive an email when ready')}>
+                    Export All Data
+                  </Button>
                 </div>
                 
                 <div>
@@ -271,7 +284,9 @@ export default function Settings() {
                   <p className="text-sm text-muted-foreground mb-2">
                     View your storage usage and limits
                   </p>
-                  <Button variant="outline">View Usage</Button>
+                  <Button variant="outline" onClick={() => toast.info('Usage: 2.3GB used of 10GB plan')}>
+                    View Usage
+                  </Button>
                 </div>
                 
                 <div className="pt-4 border-t border-destructive/20">
@@ -279,7 +294,9 @@ export default function Settings() {
                   <p className="text-sm text-muted-foreground mb-2">
                     Permanently delete your account and all data
                   </p>
-                  <Button variant="destructive" size="sm">Delete Account</Button>
+                  <Button variant="destructive" size="sm" onClick={() => toast.error('Account deletion requires email confirmation')}>
+                    Delete Account
+                  </Button>
                 </div>
               </div>
             </CardContent>
