@@ -30,7 +30,7 @@ export default function AudioCleanup() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   
-  const { uploadFile, uploads } = useStorage();
+  const { uploadFile, uploads } = useFileUpload();
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -454,7 +454,7 @@ export default function AudioCleanup() {
                     <div className="flex justify-between text-sm">
                       <span className="truncate">{upload.file.name}</span>
                       <Badge variant={
-                        upload.status === 'completed' ? 'default' :
+                        upload.status === 'complete' ? 'default' :
                         upload.status === 'error' ? 'destructive' : 'secondary'
                       }>
                         {upload.status}
