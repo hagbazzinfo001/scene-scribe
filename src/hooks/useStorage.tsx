@@ -54,11 +54,13 @@ export function useStorage() {
 
       if (error) throw error;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      // Create a signed URL so external AI providers (Replicate) can fetch the file even if bucket is private
+      const { data: signed, error: signedErr } = await supabase.storage
         .from(bucket)
-        .getPublicUrl(data.path);
+        .createSignedUrl(data.path, 60 * 60 * 24); // 24 hours
 
+      if (signedErr) throw signedErr;
+      const publicUrl = signed.signedUrl;
       // Update upload status
       setUploads(prev => prev.map(upload => 
         upload.file === file 

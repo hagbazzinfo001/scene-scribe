@@ -119,8 +119,14 @@ export default function AudioCleanup() {
 
       console.log('Audio processing result:', data);
 
-      if (data.output) {
-        setProcessedAudioUrl(data.output);
+      if (data?.output) {
+        const out = Array.isArray(data.output)
+          ? data.output[0]
+          : (typeof data.output === 'object' && data.output?.audio)
+            ? data.output.audio
+            : (data.output.url || data.output);
+        if (!out) throw new Error('No valid output URL returned');
+        setProcessedAudioUrl(out);
         toast.success('Audio processing completed!');
       } else {
         throw new Error('No processed audio returned');

@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useTheme } from 'next-themes';
 
 export default function Settings() {
   const { user } = useAuth();

@@ -15,6 +15,7 @@ import VFXAnimation from "./pages/VFXAnimation";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import { AppSidebar } from "@/components/AppSidebar";
+import { ThemeProvider } from 'next-themes';
 
 const queryClient = new QueryClient();
 
@@ -57,20 +58,22 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AppLayout>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/project/:id" element={<ProjectWorkspace />} />
-              <Route path="/ai-chat" element={<AIChat />} />
-              <Route path="/audio-cleanup" element={<AudioCleanup />} />
-              <Route path="/vfx-animation" element={<VFXAnimation />} />
-              <Route path="/settings" element={<Settings />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AppLayout>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <AppLayout>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/project/:id" element={<ProjectWorkspace />} />
+                <Route path="/ai-chat" element={<AIChat />} />
+                <Route path="/audio-cleanup" element={<AudioCleanup />} />
+                <Route path="/vfx-animation" element={<VFXAnimation />} />
+                <Route path="/settings" element={<Settings />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AppLayout>
+          </ThemeProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

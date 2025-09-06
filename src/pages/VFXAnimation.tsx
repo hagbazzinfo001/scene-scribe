@@ -16,6 +16,7 @@ export default function VFXAnimation() {
   const { uploadFile, uploads } = useStorage();
   const [selectedVideoUrl, setSelectedVideoUrl] = useState<string>('');
   const [processedGradeUrl, setProcessedGradeUrl] = useState<string>('');
+  const [rotoResultUrl, setRotoResultUrl] = useState<string>('');
 
   return (
     <div className="container mx-auto p-6">
@@ -453,10 +454,19 @@ export default function VFXAnimation() {
                         return;
                       }
                       
+                      // Prefer uploaded image if available
+                      let imageUrl = 'https://via.placeholder.com/800x600/cccccc/666666?text=Sample+Frame';
+                      const fileInput = document.getElementById('footage-upload') as HTMLInputElement | null;
+                      const selFile = fileInput?.files?.[0];
+                      if (selFile && selFile.type.startsWith('image/')) {
+                        const uploadedUrl = await uploadFile(selFile, 'vfx-assets');
+                        if (uploadedUrl) imageUrl = uploadedUrl;
+                      }
+
                       // Use Replicate color-grade edge function
                       const { data, error } = await supabase.functions.invoke('color-grade', {
                         body: {
-                          imageUrl: 'https://via.placeholder.com/800x600/cccccc/666666?text=Sample+Frame',
+                          imageUrl,
                           prompt: `Apply ${sceneMood} color grading to this image. Make it cinematic and professional for Nollywood production.`
                         }
                       });
@@ -466,7 +476,7 @@ export default function VFXAnimation() {
                         const out = Array.isArray(data.output) ? data.output[0] : data.output;
                         setProcessedGradeUrl(out);
                         toast.success("Color grading preview generated!");
-                        
+
                         // Create results display with before/after
                         const resultsDiv = document.createElement('div');
                         resultsDiv.className = 'mt-4 p-4 bg-muted rounded-lg color-grade-results';
