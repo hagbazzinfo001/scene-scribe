@@ -170,6 +170,20 @@ serve(async (req) => {
               message: 'Your video segmentation and tracking job has completed successfully.'
             });
 
+          // Save outputs to asset library
+          await supabase.from('user_assets').insert([
+            {
+              user_id: user.id,
+              project_id: project_id,
+              filename: `${timestamp}-roto-mask.mp4`,
+              file_url: maskUrl,
+              file_type: 'video',
+              storage_path: `roto/${timestamp}-mask.mp4`,
+              metadata: { scene_description, frame_range },
+              processing_status: 'completed'
+            },
+          ]);
+
           return new Response(
             JSON.stringify({
               success: true,
@@ -177,7 +191,7 @@ serve(async (req) => {
               mask_url: maskUrl,
               track_points_url: trackingData,
               preview_url: maskUrl,
-              message: 'ROTO/Tracking processing completed'
+              message: 'ROTO processing completed and saved to asset library'
             }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );

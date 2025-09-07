@@ -46,17 +46,8 @@ serve(async (req) => {
       );
     }
 
-    // Check if OpenAI API key is available for procedural rigging instructions
+    // OpenAI API key is optional; we fall back to default instructions if missing
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      return new Response(
-        JSON.stringify({ 
-          status: 'engine_unavailable', 
-          message: 'Auto-rigging engine is currently unavailable. Please configure OpenAI API key in Supabase secrets.' 
-        }),
-        { status: 503, headers: corsHeaders }
-      );
-    }
 
     // Create job record
     const { data: job, error: jobError } = await supabase
@@ -92,35 +83,42 @@ serve(async (req) => {
         throw new Error(`Failed to get download URL: ${downloadError.message}`);
       }
 
-      // Generate rigging instructions using OpenAI
-      const rigInstructionsResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-5-2025-08-07',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert 3D character rigger. Generate detailed rigging instructions for the given character type and rig complexity.'
-            },
-            {
-              role: 'user',
-              content: `Generate detailed rigging instructions for a ${rig_type} rig. Include bone hierarchy, constraint setup, and control placement guidelines. Format as JSON with sections: bone_hierarchy, constraints, controls, and automation_setup.`
-            }
-          ],
-          max_completion_tokens: 2000
-        }),
+      // Generate rigging instructions (optional via OpenAI)
+      let rigInstructions = JSON.stringify({
+        note: 'Default rig instructions used',
+        rig_type,
+        bone_hierarchy: [],
+        constraints: [],
+        controls: [],
+        automation_setup: []
       });
-
-      if (!rigInstructionsResponse.ok) {
-        throw new Error(`OpenAI API error: ${rigInstructionsResponse.statusText}`);
+      if (openaiApiKey) {
+        const rigInstructionsResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-5-2025-08-07',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are an expert 3D character rigger. Generate detailed rigging instructions for the given character type and rig complexity.'
+              },
+              {
+                role: 'user',
+                content: `Generate detailed rigging instructions for a ${rig_type} rig. Include bone hierarchy, constraint setup, and control placement guidelines. Format as JSON with sections: bone_hierarchy, constraints, controls, and automation_setup.`
+              }
+            ],
+            max_completion_tokens: 2000
+          }),
+        });
+        if (rigInstructionsResponse.ok) {
+          const instructionsData = await rigInstructionsResponse.json();
+          rigInstructions = instructionsData.choices?.[0]?.message?.content || rigInstructions;
+        }
       }
-
-      const instructionsData = await rigInstructionsResponse.json();
-      const rigInstructions = instructionsData.choices[0].message.content;
 
       // In a real implementation, this would call a 3D rigging service
       // For now, we'll generate a procedural rig file URL and comprehensive instructions
@@ -146,20 +144,23 @@ serve(async (req) => {
         })
         .eq('id', job.id);
 
-      // Create rig asset record
+      // Save rig to asset library
       await supabase
-        .from('vfx_assets')
+        .from('user_assets')
         .insert({
           user_id: user.id,
           project_id: project_id,
           filename: `${rig_type}-rig.fbx`,
           file_url: rigFileUrl,
-          file_type: 'application/octet-stream',
+          file_type: 'rig',
+          storage_path: `rigs/${timestamp}-${rig_type}.fbx`,
           metadata: {
             type: 'character_rig',
             rig_type: rig_type,
-            generated_by: 'auto_rigger'
-          }
+            generated_by: 'auto_rigger',
+            source_path: character_file_path
+          },
+          processing_status: 'completed'
         });
 
       // Create notification

@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChatAssistant } from '@/components/ChatAssistant';
 import { UsageAnalytics } from '@/components/UsageAnalytics';
 import { ImportAssetDropzone } from '@/components/ImportAssetDropzone';
+import jsPDF from 'jspdf';
 
 export default function ProjectWorkspace() {
   const { id: projectId } = useParams<{ id: string }>();
@@ -27,10 +28,7 @@ export default function ProjectWorkspace() {
       if (!projectId) return null;
       const { data, error } = await supabase
         .from('projects')
-        .select(`
-          *,
-          project_collaborators(count)
-        `)
+        .select('*')
         .eq('id', projectId)
         .single();
 
@@ -111,7 +109,7 @@ export default function ProjectWorkspace() {
     });
   };
 
-  const exportAnalysis = (analysis: any, format: 'json' | 'csv' | 'docx' = 'json') => {
+  const exportAnalysis = (analysis: any, format: 'json' | 'csv' | 'pdf' = 'json') => {
     if (format === 'csv' && analysis.result.scenes) {
       // CSV export for script breakdown
       const csvData = [
@@ -137,6 +135,24 @@ export default function ProjectWorkspace() {
       link.download = `script-breakdown-${Date.now()}.csv`;
       link.click();
       URL.revokeObjectURL(url);
+    } else if (format === 'pdf' && analysis.result.scenes) {
+      const doc = new jsPDF();
+      doc.setFontSize(14);
+      doc.text('Script Breakdown', 14, 20);
+      let y = 30;
+      const scenes = analysis.result.scenes as any[];
+      scenes.slice(0, 100).forEach((scene: any, idx: number) => {
+        const line = `Scene ${scene.number || idx + 1} - ${scene.location || ''} - ${scene.time || ''}`;
+        doc.setFontSize(12);
+        doc.text(line, 14, y);
+        y += 6;
+        const desc = (scene.description || '').toString();
+        const split = doc.splitTextToSize(desc, 180);
+        split.forEach((row: string) => { doc.text(row, 14, y); y += 6; });
+        y += 4;
+        if (y > 270) { doc.addPage(); y = 20; }
+      });
+      doc.save(`script-breakdown-${Date.now()}.pdf`);
     } else {
       // JSON export (default)
       const dataStr = JSON.stringify(analysis.result, null, 2);
@@ -277,6 +293,14 @@ export default function ProjectWorkspace() {
                             >
                               <Download className="h-4 w-4 mr-2" />
                               Export CSV
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => exportAnalysis(analysis, 'pdf')}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Export PDF
                             </Button>
                             <Button
                               variant="outline"

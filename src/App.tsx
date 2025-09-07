@@ -9,7 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import ProjectWorkspace from "./pages/ProjectWorkspace";
-import ProjectImportPage from "./features/projects/import/ProjectImportPage";
+// Removed legacy import page route
 import AIChat from "./pages/AIChat";
 import AudioCleanup from "./pages/AudioCleanup";
 import VFXAnimation from "./pages/VFXAnimation";
@@ -66,7 +66,7 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/project/:id" element={<ProjectWorkspace />} />
-                <Route path="/project/:projectId/import" element={<ProjectImportPage />} />
+                {/* Removed legacy /project/:projectId/import route */}
                 <Route path="/ai-chat" element={<AIChat />} />
                 <Route path="/audio-cleanup" element={<AudioCleanup />} />
                 <Route path="/vfx-animation" element={<VFXAnimation />} />
