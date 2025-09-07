@@ -1,25 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import { Upload, FileText, Users, Download, Settings } from 'lucide-react';
+import { Upload, FileText, Users, Download, Settings, RefreshCw, Music, Video, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChatAssistant } from '@/components/ChatAssistant';
 import { UsageAnalytics } from '@/components/UsageAnalytics';
-import { aiService } from '@/services/aiService';
+import { ImportAssetDropzone } from '@/components/ImportAssetDropzone';
 
 export default function ProjectWorkspace() {
   const { id: projectId } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [uploading, setUploading] = useState(false);
+  const [selectedTab, setSelectedTab] = useState('assets');
 
   // Fetch project details
   const { data: project, isLoading } = useQuery({
@@ -30,98 +29,97 @@ export default function ProjectWorkspace() {
         .from('projects')
         .select(`
           *,
-          scripts(*),
-          project_collaborators(*)
+          project_collaborators(count)
         `)
         .eq('id', projectId)
         .single();
 
       if (error) throw error;
-
-      // Fetch breakdowns separately if there are scripts
-      let breakdowns = [];
-      if (data.scripts && Array.isArray(data.scripts) && data.scripts.length > 0) {
-        const { data: breakdownData } = await supabase
-          .from('breakdowns')
-          .select('*')
-          .in('script_id', data.scripts.map((s: any) => s.id));
-        breakdowns = breakdownData || [];
-      }
-
-      return { ...data, breakdowns: breakdowns || [] };
+      return data;
     },
     enabled: !!projectId,
   });
 
-  // Upload script mutation
-  const uploadScriptMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const fileExt = file.name.split('.').pop();
-      const content = await file.text();
+  // Fetch user assets for this project
+  const { data: assets = [], isLoading: assetsLoading } = useQuery({
+    queryKey: ['assets', projectId],
+    queryFn: async () => {
+      if (!projectId) return [];
+      const { data, error } = await supabase
+        .from('user_assets')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
       
-      // First, upload the script
-      const { data: script, error } = await supabase
-        .from('scripts')
-        .insert([
-          {
-            project_id: projectId!,
-            title: file.name.replace(/\.[^/.]+$/, ""),
-            content: content,
-            file_type: fileExt,
-          }
-        ])
-        .select()
-        .single();
-
       if (error) throw error;
-
-      // Then analyze the script automatically using AI service
-      try {
-        await aiService.analyzeScript(content, script.id, projectId!);
-      } catch (error) {
-        console.error('Analysis error:', error);
-        // Don't fail the upload if analysis fails
-      }
-
-      return script;
+      return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['project', projectId] });
-      toast({
-        title: "Script uploaded and analyzed",
-        description: "Your script has been uploaded and automatically analyzed for breakdown.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Upload failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
+    enabled: !!projectId,
   });
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Fetch analysis results
+  const { data: analyses = [] } = useQuery({
+    queryKey: ['analyses', projectId],
+    queryFn: async () => {
+      if (!projectId) return [];
+      const { data, error } = await supabase
+        .from('analysis_cache')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!projectId,
+  });
 
-    // Check file type (for MVP, accept text files)
-    const allowedTypes = ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.txt')) {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload a TXT, PDF, or DOCX file.",
-        variant: "destructive",
-      });
-      return;
-    }
+  // Real-time subscriptions for job updates
+  useEffect(() => {
+    if (!projectId) return;
 
-    setUploading(true);
-    try {
-      await uploadScriptMutation.mutateAsync(file);
-    } finally {
-      setUploading(false);
-    }
+    const channel = supabase
+      .channel('project-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'user_assets',
+        filter: `project_id=eq.${projectId}`
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['assets', projectId] });
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'analysis_cache',
+        filter: `project_id=eq.${projectId}`
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['analyses', projectId] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [projectId, queryClient]);
+
+  const handleAssetUploaded = (asset: any) => {
+    queryClient.invalidateQueries({ queryKey: ['assets', projectId] });
+    toast({
+      title: "Asset uploaded",
+      description: `${asset.filename} has been uploaded and is being analyzed.`,
+    });
+  };
+
+  const exportAnalysis = (analysis: any) => {
+    const dataStr = JSON.stringify(analysis.result, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `analysis-${analysis.analysis_type}-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   if (isLoading) {
@@ -160,144 +158,187 @@ export default function ProjectWorkspace() {
         </div>
 
         <div className="flex-1 p-4">
-          <Tabs defaultValue="scripts" className="h-full flex flex-col">
+          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="h-full flex flex-col">
             <TabsList className="mb-4">
-              <TabsTrigger value="scripts">Scripts</TabsTrigger>
+              <TabsTrigger value="assets">Assets</TabsTrigger>
               <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
               <TabsTrigger value="schedule">Schedule</TabsTrigger>
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="scripts" className="flex-1">
-              <div className="space-y-4">
-                {/* Script Upload */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Upload className="h-5 w-5" />
-                      Upload Script
-                    </CardTitle>
-                    <CardDescription>
-                      Upload your script in TXT, PDF, or DOCX format for AI analysis
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6">
-                      <div className="text-center">
-                        <Upload className="h-10 w-10 text-muted-foreground mx-auto mb-4" />
-                        <Label htmlFor="script-upload" className="cursor-pointer">
-                          <div className="text-sm">
-                            <span className="text-primary font-medium">Click to upload</span> or drag and drop
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            TXT, PDF or DOCX (Max 10MB)
-                          </div>
-                        </Label>
-                        <Input
-                          id="script-upload"
-                          type="file"
-                          className="hidden"
-                          accept=".txt,.pdf,.docx"
-                          onChange={handleFileUpload}
-                          disabled={uploading}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+            <TabsContent value="assets" className="flex-1">
+              <div className="space-y-6">
+                {/* Import Assets */}
+                <ImportAssetDropzone 
+                  projectId={projectId!} 
+                  onAssetUploaded={handleAssetUploaded}
+                />
 
-                {/* Scripts List */}
-                {project.scripts && Array.isArray(project.scripts) && project.scripts.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Uploaded Scripts</h3>
-                    {project.scripts.map((script: any) => (
-                      <Card key={script.id}>
-                        <CardHeader>
-                          <CardTitle className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <FileText className="h-5 w-5" />
-                              {script.title}
-                            </div>
-                            <Button variant="outline" size="sm">
-                              <Download className="h-4 w-4 mr-2" />
-                              Export
-                            </Button>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="text-sm text-muted-foreground">
-                            {script.content ? (
-                              <div className="max-h-32 overflow-y-auto bg-muted p-2 rounded text-xs">
-                                {script.content.substring(0, 300)}...
+                {/* Assets List */}
+                {assets.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center justify-between">
+                        <span>Project Assets</span>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => queryClient.invalidateQueries({ queryKey: ['assets', projectId] })}
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Refresh
+                        </Button>
+                      </CardTitle>
+                      <CardDescription>
+                        All uploaded assets and their processing status
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {assets.map((asset: any) => (
+                          <div key={asset.id} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="flex-shrink-0">
+                                {asset.file_type === 'script' && <FileText className="h-5 w-5" />}
+                                {asset.file_type === 'audio' && <Music className="h-5 w-5" />}
+                                {asset.file_type === 'video' && <Video className="h-5 w-5" />}
+                                {asset.file_type === 'image' && <Image className="h-5 w-5" />}
                               </div>
-                            ) : (
-                              "No content available"
-                            )}
+                              <div>
+                                <p className="font-medium">{asset.filename}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {asset.file_type} • {asset.processing_status}
+                                  {asset.file_size && ` • ${Math.round(asset.file_size / 1024)} KB`}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {asset.processing_status === 'completed' && (
+                                <Badge variant="default">Ready</Badge>
+                              )}
+                              {asset.processing_status === 'processing' && (
+                                <Badge variant="secondary">Processing</Badge>
+                              )}
+                              {asset.processing_status === 'failed' && (
+                                <Badge variant="destructive">Failed</Badge>
+                              )}
+                            </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
             </TabsContent>
 
             <TabsContent value="breakdown" className="flex-1">
-              {project?.breakdowns && project.breakdowns.length > 0 ? (
+              {analyses.length > 0 ? (
                 <div className="space-y-4">
-                  {project.breakdowns.map((breakdown: any) => (
-                    <Card key={breakdown.id}>
+                  {analyses.map((analysis: any) => (
+                    <Card key={analysis.id}>
                       <CardHeader>
-                        <CardTitle>Script Analysis</CardTitle>
+                        <CardTitle className="flex items-center justify-between">
+                          <span>{analysis.analysis_type.replace('super_breakdown_', '').toUpperCase()} Analysis</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => exportAnalysis(analysis)}
+                          >
+                            <Download className="h-4 w-4 mr-2" />
+                            Export JSON
+                          </Button>
+                        </CardTitle>
                         <CardDescription>
-                          AI-generated analysis of scenes, characters, props, and locations
+                          AI-generated breakdown and analysis
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-6">
-                          {/* Scenes */}
-                          {breakdown.content?.scenes && (
-                            <div>
-                              <h4 className="font-semibold mb-2">Scenes ({breakdown.content.scenes.length})</h4>
-                              <div className="grid gap-2 max-h-40 overflow-y-auto">
-                                {breakdown.content.scenes.slice(0, 5).map((scene: any, idx: number) => (
-                                  <div key={idx} className="text-sm border rounded p-2">
-                                    <div className="font-medium">Scene {scene.number}: {scene.location}</div>
-                                    <div className="text-muted-foreground">VFX: {scene.vfxNeeds} | SFX: {scene.sfxNeeds}</div>
-                                  </div>
-                                ))}
-                                {breakdown.content.scenes.length > 5 && (
-                                  <div className="text-sm text-muted-foreground text-center">
-                                    +{breakdown.content.scenes.length - 5} more scenes
-                                  </div>
-                                )}
+                        <div className="space-y-4">
+                          {/* Script Analysis */}
+                          {analysis.analysis_type.includes('script') && analysis.result.scenes && (
+                            <>
+                              <div>
+                                <h4 className="font-semibold mb-2">Scenes ({analysis.result.scenes.length})</h4>
+                                <div className="grid gap-2 max-h-40 overflow-y-auto">
+                                  {analysis.result.scenes.slice(0, 5).map((scene: any, idx: number) => (
+                                    <div key={idx} className="text-sm border rounded p-2">
+                                      <div className="font-medium">Scene {scene.number}: {scene.location}</div>
+                                      <div className="text-muted-foreground">{scene.description}</div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
+                              {analysis.result.characters && (
+                                <div>
+                                  <h4 className="font-semibold mb-2">Characters ({analysis.result.characters.length})</h4>
+                                  <div className="flex flex-wrap gap-2">
+                                    {analysis.result.characters.map((char: any, idx: number) => (
+                                      <Badge key={idx} variant="secondary">
+                                        {char.name} ({char.importance})
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          {/* Audio Analysis */}
+                          {analysis.analysis_type.includes('audio') && (
+                            <div>
+                              <h4 className="font-semibold mb-2">Audio Transcript</h4>
+                              <div className="text-sm bg-muted p-3 rounded">
+                                {analysis.result.transcript || 'No transcript available'}
+                              </div>
+                              {analysis.result.speakers && (
+                                <div className="mt-2">
+                                  <span className="text-xs text-muted-foreground">
+                                    Speakers: {analysis.result.speakers.join(', ')}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           )}
-                          
-                          {/* Characters */}
-                          {breakdown.content?.characters && (
+
+                          {/* Video Analysis */}
+                          {analysis.analysis_type.includes('video') && (
                             <div>
-                              <h4 className="font-semibold mb-2">Characters ({breakdown.content.characters.length})</h4>
-                              <div className="flex flex-wrap gap-2">
-                                {breakdown.content.characters.map((char: any, idx: number) => (
-                                  <div key={idx} className="text-xs bg-muted px-2 py-1 rounded">
-                                    {char.name} ({char.importance})
+                              <h4 className="font-semibold mb-2">Video Analysis</h4>
+                              {analysis.result.shots && (
+                                <div className="space-y-2">
+                                  {analysis.result.shots.slice(0, 3).map((shot: any, idx: number) => (
+                                    <div key={idx} className="text-sm border rounded p-2">
+                                      <div className="font-medium">{shot.description}</div>
+                                      <div className="text-muted-foreground">
+                                        {shot.startTime}s - {shot.endTime}s
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {analysis.result.vfxFlags && (
+                                <div className="mt-3">
+                                  <h5 className="font-medium mb-1">VFX Requirements</h5>
+                                  <div className="flex flex-wrap gap-1">
+                                    {analysis.result.vfxFlags.map((flag: string, idx: number) => (
+                                      <Badge key={idx} variant="outline">{flag}</Badge>
+                                    ))}
                                   </div>
-                                ))}
-                              </div>
+                                </div>
+                              )}
                             </div>
                           )}
-                          
-                          {/* Overview */}
-                          {breakdown.content?.overallAnalysis && (
+
+                          {/* Image Analysis */}
+                          {analysis.analysis_type.includes('image') && (
                             <div>
-                              <h4 className="font-semibold mb-2">Production Analysis</h4>
+                              <h4 className="font-semibold mb-2">Image Analysis</h4>
                               <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>Genre: {breakdown.content.overallAnalysis.genre}</div>
-                                <div>Budget: {breakdown.content.overallAnalysis.estimatedBudget}</div>
-                                <div>VFX Intensity: {breakdown.content.overallAnalysis.vfxIntensity}</div>
-                                <div>Shooting Days: {breakdown.content.overallAnalysis.shootingDays}</div>
+                                <div>Tags: {analysis.result.tags?.join(', ') || 'None'}</div>
+                                <div>Composition: {analysis.result.composition || 'Unknown'}</div>
+                                <div>Lighting: {analysis.result.lighting || 'Unknown'}</div>
+                                <div>VFX Suitability: {analysis.result.vfxSuitability || 'Unknown'}</div>
                               </div>
                             </div>
                           )}
@@ -309,15 +350,15 @@ export default function ProjectWorkspace() {
               ) : (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Script Breakdown</CardTitle>
+                    <CardTitle>Super Breakdown Analysis</CardTitle>
                     <CardDescription>
-                      AI-generated analysis of scenes, characters, props, and locations
+                      AI-generated analysis of your uploaded assets
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="text-center py-8 text-muted-foreground">
                       <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Upload a script to see AI-generated breakdowns</p>
+                      <p>Upload assets to see AI-generated breakdowns</p>
                     </div>
                   </CardContent>
                 </Card>
