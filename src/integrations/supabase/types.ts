@@ -228,6 +228,41 @@ export type Database = {
         }
         Relationships: []
       }
+      dev_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          job_id: string | null
+          level: string
+          message: string
+          metadata: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          job_id?: string | null
+          level: string
+          message: string
+          metadata?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          job_id?: string | null
+          level?: string
+          message?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dev_logs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           ai_model: string | null
@@ -285,6 +320,48 @@ export type Database = {
         }
         Relationships: []
       }
+      model_benchmarks: {
+        Row: {
+          accuracy_score: number | null
+          analysis_type: string
+          avg_latency_ms: number | null
+          benchmark_date: string | null
+          cost_per_unit: number | null
+          created_at: string | null
+          id: string
+          model_name: string
+          notes: string | null
+          provider: string
+          test_file_size: number | null
+        }
+        Insert: {
+          accuracy_score?: number | null
+          analysis_type: string
+          avg_latency_ms?: number | null
+          benchmark_date?: string | null
+          cost_per_unit?: number | null
+          created_at?: string | null
+          id?: string
+          model_name: string
+          notes?: string | null
+          provider: string
+          test_file_size?: number | null
+        }
+        Update: {
+          accuracy_score?: number | null
+          analysis_type?: string
+          avg_latency_ms?: number | null
+          benchmark_date?: string | null
+          cost_per_unit?: number | null
+          created_at?: string | null
+          id?: string
+          model_name?: string
+          notes?: string | null
+          provider?: string
+          test_file_size?: number | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string | null
@@ -322,6 +399,8 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string | null
+          credits_remaining: number | null
+          credits_used: number | null
           email: string
           full_name: string | null
           id: string
@@ -330,6 +409,8 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string | null
+          credits_remaining?: number | null
+          credits_used?: number | null
           email: string
           full_name?: string | null
           id: string
@@ -338,6 +419,8 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string | null
+          credits_remaining?: number | null
+          credits_used?: number | null
           email?: string
           full_name?: string | null
           id?: string
@@ -431,6 +514,62 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      user_assets: {
+        Row: {
+          created_at: string | null
+          file_size: number | null
+          file_type: string
+          file_url: string
+          filename: string
+          id: string
+          metadata: Json | null
+          mime_type: string | null
+          processing_status: string | null
+          project_id: string | null
+          storage_path: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_size?: number | null
+          file_type: string
+          file_url: string
+          filename: string
+          id?: string
+          metadata?: Json | null
+          mime_type?: string | null
+          processing_status?: string | null
+          project_id?: string | null
+          storage_path: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          file_size?: number | null
+          file_type?: string
+          file_url?: string
+          filename?: string
+          id?: string
+          metadata?: Json | null
+          mime_type?: string | null
+          processing_status?: string | null
+          project_id?: string | null
+          storage_path?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_assets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_settings: {
         Row: {
