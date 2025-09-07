@@ -111,15 +111,43 @@ export default function ProjectWorkspace() {
     });
   };
 
-  const exportAnalysis = (analysis: any) => {
-    const dataStr = JSON.stringify(analysis.result, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `analysis-${analysis.analysis_type}-${Date.now()}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+  const exportAnalysis = (analysis: any, format: 'json' | 'csv' | 'docx' = 'json') => {
+    if (format === 'csv' && analysis.result.scenes) {
+      // CSV export for script breakdown
+      const csvData = [
+        ['Scene', 'Location', 'Time', 'Characters', 'Description', 'Props'],
+        ...analysis.result.scenes.map((scene: any) => [
+          scene.number || '',
+          scene.location || '',
+          scene.time || '',
+          (scene.characters || []).join(', '),
+          scene.description || '',
+          (scene.props || []).join(', ')
+        ])
+      ];
+      
+      const csvContent = csvData.map(row => 
+        row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',')
+      ).join('\n');
+      
+      const dataBlob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `script-breakdown-${Date.now()}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } else {
+      // JSON export (default)
+      const dataStr = JSON.stringify(analysis.result, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `analysis-${analysis.analysis_type}-${Date.now()}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
   if (isLoading) {
@@ -162,6 +190,7 @@ export default function ProjectWorkspace() {
             <TabsList className="mb-4">
               <TabsTrigger value="assets">Assets</TabsTrigger>
               <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
+              <TabsTrigger value="vfx">VFX Tools</TabsTrigger>
               <TabsTrigger value="schedule">Schedule</TabsTrigger>
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
@@ -240,14 +269,24 @@ export default function ProjectWorkspace() {
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between">
                           <span>{analysis.analysis_type.replace('super_breakdown_', '').toUpperCase()} Analysis</span>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => exportAnalysis(analysis)}
-                          >
-                            <Download className="h-4 w-4 mr-2" />
-                            Export JSON
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => exportAnalysis(analysis, 'csv')}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Export CSV
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => exportAnalysis(analysis)}
+                            >
+                              <Download className="h-4 w-4 mr-2" />
+                              Export JSON
+                            </Button>
+                          </div>
                         </CardTitle>
                         <CardDescription>
                           AI-generated breakdown and analysis
@@ -363,6 +402,24 @@ export default function ProjectWorkspace() {
                   </CardContent>
                 </Card>
               )}
+            </TabsContent>
+
+            <TabsContent value="vfx" className="flex-1">
+              <Card>
+                <CardHeader>
+                  <CardTitle>VFX & Animation Tools</CardTitle>
+                  <CardDescription>
+                    AI-powered roto-scoping, auto-rigging, and color processing
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <iframe 
+                    src={`/vfx-animation/${projectId}`} 
+                    className="w-full h-[600px] border-0 rounded-lg"
+                    title="VFX Tools"
+                  />
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="schedule" className="flex-1">

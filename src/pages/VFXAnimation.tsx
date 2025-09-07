@@ -393,86 +393,21 @@ export default function VFXAnimation() {
       </div>
 
       <Tabs defaultValue="roto" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="import">Import</TabsTrigger>
-          <TabsTrigger value="roto">Roto/Track AI</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="roto">Roto Scoping</TabsTrigger>
           <TabsTrigger value="rigging">Auto-Rigger</TabsTrigger>
-          <TabsTrigger value="grading">Color Grade</TabsTrigger>
+          <TabsTrigger value="grading">Color Process</TabsTrigger>
           <TabsTrigger value="assets">Asset Library</TabsTrigger>
         </TabsList>
 
-        {/* [SCRIPT_BREAKDOWN] Import & Script Analysis Tab */}
-        <TabsContent value="import" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                Import & Analyze Project Assets
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Upload scripts, audio, video, and images for AI-powered breakdown and analysis
-              </p>
-            </CardHeader>
-            <CardContent>
-              <ImportAssetDropzone 
-                projectId={projectId || 'default'}
-                onAssetUploaded={handleAssetUploaded}
-              />
-            </CardContent>
-          </Card>
-          
-          {/* Project Assets Overview */}
-          {projectAssets.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Project Assets ({projectAssets.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {projectAssets.map((asset) => (
-                    <div key={asset.id} className="p-3 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium truncate">{asset.filename}</span>
-                        <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
-                          {asset.file_type}
-                        </span>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Size: {Math.round((asset.file_size || 0) / 1024)}KB
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Status: {asset.processing_status}
-                      </div>
-                      {asset.file_url && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="w-full mt-2"
-                          onClick={() => window.open(asset.file_url, '_blank')}
-                        >
-                          <Download className="h-3 w-3 mr-1" />
-                          View
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Roto/Track AI Tab */}
+        {/* Roto Scoping Tab */}
         <TabsContent value="roto" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Camera className="h-5 w-5" />
-                  Video Input & Scene Analysis
+                  Roto Scoping Setup
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">

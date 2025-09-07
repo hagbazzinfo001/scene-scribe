@@ -70,6 +70,7 @@ const App = () => (
                 <Route path="/ai-chat" element={<AIChat />} />
                 <Route path="/audio-cleanup" element={<AudioCleanup />} />
                 <Route path="/vfx-animation" element={<VFXAnimation />} />
+                <Route path="/vfx-animation/:projectId" element={<VFXAnimation />} />
                 <Route path="/settings" element={<Settings />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

@@ -181,7 +181,12 @@ export class AIService {
   }
 
   async chatAssistant(message: string, projectId?: string, options?: AIServiceOptions) {
-    return this.callAI('ai-assistant', { message, projectId }, options);
+    return this.callAI('ai-assistant-enhanced', { message, projectId }, {
+      provider: 'openai',
+      model: 'gpt-5-2025-08-07',
+      endpoint: 'ai-assistant-enhanced',
+      ...options
+    });
   }
 
   // Migration helper methods
