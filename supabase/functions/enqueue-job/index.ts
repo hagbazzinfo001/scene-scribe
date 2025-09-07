@@ -37,7 +37,7 @@ serve(async (req) => {
       );
     }
 
-    const { type, input_data, project_id } = await req.json();
+    const { type, input_data, project_id, payload } = await req.json();
 
     if (!type || !input_data) {
       return new Response(
@@ -47,7 +47,7 @@ serve(async (req) => {
     }
 
     // Validate job type
-    const validJobTypes = ['roto', 'auto-rigger', 'color-grade', 'script-analysis', 'audio-cleanup'];
+    const validJobTypes = ['roto', 'auto-rigger', 'color-grade', 'script-analysis', 'audio-cleanup', 'breakdown', 'rig', 'generate_thumbnail'];
     if (!validJobTypes.includes(type)) {
       return new Response(
         JSON.stringify({ error: `Invalid job type. Valid types: ${validJobTypes.join(', ')}` }),
@@ -63,6 +63,7 @@ serve(async (req) => {
         project_id: project_id || null,
         type: type,
         input_data: input_data,
+        payload: payload || input_data, // Support both formats
         status: 'pending'
       })
       .select()

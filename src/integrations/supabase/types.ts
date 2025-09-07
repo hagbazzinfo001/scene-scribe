@@ -97,7 +97,12 @@ export type Database = {
           file_url: string
           filename: string
           id: string
+          mime: string | null
+          owner_id: string | null
+          path: string | null
           project_id: string | null
+          size: number | null
+          status: string | null
           updated_at: string | null
           user_id: string
         }
@@ -108,7 +113,12 @@ export type Database = {
           file_url: string
           filename: string
           id?: string
+          mime?: string | null
+          owner_id?: string | null
+          path?: string | null
           project_id?: string | null
+          size?: number | null
+          status?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -119,7 +129,12 @@ export type Database = {
           file_url?: string
           filename?: string
           id?: string
+          mime?: string | null
+          owner_id?: string | null
+          path?: string | null
           project_id?: string | null
+          size?: number | null
+          status?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -270,12 +285,15 @@ export type Database = {
           completed_at: string | null
           cost_estimate: number | null
           created_at: string | null
+          error: string | null
           error_message: string | null
           id: string
           input_data: Json
           output_data: Json | null
+          payload: Json | null
           processing_time_ms: number | null
           project_id: string | null
+          result: Json | null
           status: string | null
           tokens_used: number | null
           type: string
@@ -288,12 +306,15 @@ export type Database = {
           completed_at?: string | null
           cost_estimate?: number | null
           created_at?: string | null
+          error?: string | null
           error_message?: string | null
           id?: string
           input_data: Json
           output_data?: Json | null
+          payload?: Json | null
           processing_time_ms?: number | null
           project_id?: string | null
+          result?: Json | null
           status?: string | null
           tokens_used?: number | null
           type: string
@@ -306,12 +327,15 @@ export type Database = {
           completed_at?: string | null
           cost_estimate?: number | null
           created_at?: string | null
+          error?: string | null
           error_message?: string | null
           id?: string
           input_data?: Json
           output_data?: Json | null
+          payload?: Json | null
           processing_time_ms?: number | null
           project_id?: string | null
+          result?: Json | null
           status?: string | null
           tokens_used?: number | null
           type?: string
@@ -459,6 +483,7 @@ export type Database = {
           id: string
           name: string
           owner_id: string
+          title: string | null
           updated_at: string | null
         }
         Insert: {
@@ -467,6 +492,7 @@ export type Database = {
           id?: string
           name: string
           owner_id: string
+          title?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -475,6 +501,7 @@ export type Database = {
           id?: string
           name?: string
           owner_id?: string
+          title?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -621,9 +648,14 @@ export type Database = {
           file_url: string
           filename: string
           id: string
+          meta: Json | null
           metadata: Json | null
+          owner_id: string | null
+          path: string | null
           project_id: string | null
+          status: string | null
           thumbnail_url: string | null
+          type: string | null
           updated_at: string | null
           user_id: string
         }
@@ -634,9 +666,14 @@ export type Database = {
           file_url: string
           filename: string
           id?: string
+          meta?: Json | null
           metadata?: Json | null
+          owner_id?: string | null
+          path?: string | null
           project_id?: string | null
+          status?: string | null
           thumbnail_url?: string | null
+          type?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -647,9 +684,14 @@ export type Database = {
           file_url?: string
           filename?: string
           id?: string
+          meta?: Json | null
           metadata?: Json | null
+          owner_id?: string | null
+          path?: string | null
           project_id?: string | null
+          status?: string | null
           thumbnail_url?: string | null
+          type?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -663,8 +705,12 @@ export type Database = {
           file_url: string
           filename: string
           id: string
+          owner_id: string | null
+          path: string | null
           project_id: string | null
           resolution: string | null
+          status: string | null
+          thumb_path: string | null
           updated_at: string | null
           user_id: string
         }
@@ -675,8 +721,12 @@ export type Database = {
           file_url: string
           filename: string
           id?: string
+          owner_id?: string | null
+          path?: string | null
           project_id?: string | null
           resolution?: string | null
+          status?: string | null
+          thumb_path?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -687,8 +737,12 @@ export type Database = {
           file_url?: string
           filename?: string
           id?: string
+          owner_id?: string | null
+          path?: string | null
           project_id?: string | null
           resolution?: string | null
+          status?: string | null
+          thumb_path?: string | null
           updated_at?: string | null
           user_id?: string
         }
