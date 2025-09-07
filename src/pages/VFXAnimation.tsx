@@ -1,5 +1,11 @@
-import { useState } from 'react';
-import { Sparkles, Camera, Wand2, Palette, Play, Download } from 'lucide-react';
+/* 
+ * [VFX_ANIMATION] VFX & Animation Studio for Nollywood Productions
+ * Core Features: [ROTO], [AUTO_RIGGER], [COLOR_GRADE], Asset Management
+ * Market: Pan-African indie studios & students with budget-conscious workflows
+ */
+
+import { useState, useEffect } from 'react';
+import { Sparkles, Camera, Wand2, Palette, Play, Download, FileText, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,52 +15,139 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { FileUploadZone } from '@/components/FileUploadZone';
 import { MediaPreview } from '@/components/MediaPreview';
+import { ImportAssetDropzone } from '@/components/ImportAssetDropzone';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { toast } from 'sonner';
+import { useParams } from 'react-router-dom';
 
 export default function VFXAnimation() {
+  const { projectId } = useParams();
+  const { user } = useAuth();
+  
+  // [CORE_STATE] Main processing and file management states
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<{[key: string]: string}>({});
   const [selectedTypes, setSelectedTypes] = useState<{[key: string]: string}>({});
+  const [projectAssets, setProjectAssets] = useState<any[]>([]);
   
-  // VFX Planning States
+  // [ROTO] VFX Planning States for Roto/Track AI
   const [sceneDescription, setSceneDescription] = useState('');
   const [trackingResults, setTrackingResults] = useState<any>(null);
   
-  // Animation States
+  // [AUTO_RIGGER] Animation States for Auto-Rigger
   const [characterType, setCharacterType] = useState('');
   const [rigComplexity, setRigComplexity] = useState('');
   const [rigResults, setRigResults] = useState<any>(null);
   
-  // Color Grading States
+  // [COLOR_GRADE] Color Grading States
   const [colorGradeStyle, setColorGradeStyle] = useState('');
   const [colorGradeResults, setColorGradeResults] = useState<any>(null);
 
-  // Fetch VFX Assets
-  const { data: vfxAssets = [], isLoading: assetsLoading } = useQuery({
-    queryKey: ['vfx-assets'],
+  // [STORAGE_INTEGRATION] Fetch project assets and persist across sessions
+  const { data: vfxAssets = [], isLoading: assetsLoading, refetch: refetchAssets } = useQuery({
+    queryKey: ['vfx-assets', projectId],
     queryFn: async () => {
+      if (!user) return [];
+      
       const { data, error } = await supabase
-        .from('vfx_assets')
+        .from('user_assets')
         .select('*')
+        .eq('user_id', user.id)
+        .in('file_type', ['video', 'audio', 'image', 'model'])
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data;
-    }
+    },
+    enabled: !!user
   });
 
-  // Handle file uploads for different purposes
-  const handleFileUploaded = (url: string, file: File, purpose: string) => {
+  // [PERSISTENT_STORAGE] Load project files on component mount
+  useEffect(() => {
+    const loadProjectFiles = async () => {
+      if (!user || !projectId) return;
+      
+      try {
+        const { data: assets, error } = await supabase
+          .from('user_assets')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('project_id', projectId)
+          .eq('processing_status', 'completed');
+        
+        if (error) throw error;
+        
+        setProjectAssets(assets || []);
+        
+        // Auto-populate last used files for each type
+        const lastFiles: {[key: string]: string} = {};
+        const lastTypes: {[key: string]: string} = {};
+        
+        assets?.forEach(asset => {
+          if (asset.file_type === 'video' && !lastFiles.video) {
+            lastFiles.video = asset.file_url;
+            lastTypes.video = asset.mime_type;
+          } else if (asset.file_type === 'model' && !lastFiles.model) {
+            lastFiles.model = asset.file_url;
+            lastTypes.model = asset.mime_type;
+          } else if (asset.file_type === 'image' && !lastFiles.colorGradeMedia) {
+            lastFiles.colorGradeMedia = asset.file_url;
+            lastTypes.colorGradeMedia = asset.mime_type;
+          }
+        });
+        
+        setSelectedFiles(lastFiles);
+        setSelectedTypes(lastTypes);
+        
+      } catch (error) {
+        console.error('Error loading project files:', error);
+      }
+    };
+    
+    loadProjectFiles();
+  }, [user, projectId]);
+
+  // [FILE_MANAGEMENT] Handle file uploads with persistent storage
+  const handleFileUploaded = async (url: string, file: File, purpose: string) => {
     setSelectedFiles(prev => ({ ...prev, [purpose]: url }));
     setSelectedTypes(prev => ({ ...prev, [purpose]: file.type || '' }));
-    toast.success(`${file.name} uploaded successfully!`);
+    
+    // Store asset in database for persistence
+    try {
+      const fileType = file.type.startsWith('video') ? 'video' : 
+                      file.type.startsWith('image') ? 'image' : 
+                      file.type.startsWith('audio') ? 'audio' : 'model';
+      
+      await supabase.from('user_assets').insert({
+        user_id: user?.id,
+        project_id: projectId || null,
+        filename: file.name,
+        file_url: url,
+        file_type: fileType,
+        file_size: file.size,
+        mime_type: file.type,
+        storage_path: `${purpose}/${file.name}`,
+        processing_status: 'completed'
+      });
+      
+      refetchAssets();
+      toast.success(`${file.name} uploaded and saved to project!`);
+    } catch (error) {
+      console.error('Error saving asset:', error);
+      toast.success(`${file.name} uploaded successfully!`);
+    }
   };
 
-  // Roto/Track Processing
+  // [ASSET_IMPORT] Handle asset import from dropzone
+  const handleAssetUploaded = (assetId: string) => {
+    refetchAssets();
+    toast.success('Asset imported and analyzed successfully!');
+  };
+
+  // [ROTO] Roto/Track Processing - Real Replicate integration for video tracking
   const handleRotoTrack = async () => {
     if (!selectedFiles.video || !sceneDescription.trim()) {
       toast.error('Please upload a video and provide a scene description');
@@ -67,17 +160,36 @@ export default function VFXAnimation() {
         body: {
           videoUrl: selectedFiles.video,
           sceneDescription: sceneDescription.trim(),
-          trackingType: 'object'
+          trackingType: 'object',
+          projectId: projectId
         }
       });
 
       if (error) throw error;
       
       setTrackingResults(data);
+      
+      // Save results to project assets for retrieval
+      if (data.videoUrl) {
+        await supabase.from('user_assets').insert({
+          user_id: user?.id,
+          project_id: projectId || null,
+          filename: `roto_tracked_${Date.now()}.mp4`,
+          file_url: data.videoUrl,
+          file_type: 'video',
+          storage_path: `roto-results/${Date.now()}`,
+          metadata: { 
+            originalVideo: selectedFiles.video,
+            sceneDescription,
+            trackingPoints: data.trackingPoints?.length || 0
+          },
+          processing_status: 'completed'
+        });
+      }
+      
       toast.success('Roto/Track analysis completed!');
       
       // Create notification for completion
-      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('notifications').insert({
           user_id: user.id,
@@ -91,7 +203,6 @@ export default function VFXAnimation() {
       toast.error(`Failed to process video: ${error.message}`);
       
       // Create notification for error
-      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('notifications').insert({
           user_id: user.id,
@@ -105,7 +216,7 @@ export default function VFXAnimation() {
     }
   };
 
-  // Auto-Rigging
+  // [AUTO_RIGGER] Auto-Rigging - Real downloadable rig files for Maya/Blender/Unreal
   const handleAutoRig = async () => {
     if (!characterType || !rigComplexity) {
       toast.error('Please select character type and rig complexity');
@@ -114,21 +225,43 @@ export default function VFXAnimation() {
 
     setIsProcessing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('auto-rigger', {
+      const { data, error } = await supabase.functions.invoke('vfx-auto-rigger', {
         body: {
+          project_id: projectId,
+          character_file_path: selectedFiles.model || null,
+          rig_type: `${characterType}_${rigComplexity}`,
           characterType,
-          rigComplexity,
-          modelUrl: selectedFiles.model
+          rigComplexity
         }
       });
 
       if (error) throw error;
       
       setRigResults(data);
+      
+      // Save rig files to project assets for retrieval
+      if (data.output_data?.rig_file_url) {
+        await supabase.from('user_assets').insert({
+          user_id: user?.id,
+          project_id: projectId || null,
+          filename: `auto_rig_${characterType}_${rigComplexity}_${Date.now()}.zip`,
+          file_url: data.output_data.rig_file_url,
+          file_type: 'model',
+          storage_path: `rigs/${characterType}/${Date.now()}`,
+          metadata: { 
+            characterType,
+            rigComplexity,
+            boneCount: data.output_data?.bone_count || 0,
+            controlCount: data.output_data?.control_count || 0,
+            compatibility: data.output_data?.compatibility || []
+          },
+          processing_status: 'completed'
+        });
+      }
+      
       toast.success('Auto-rigging completed!');
       
       // Create notification for completion
-      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('notifications').insert({
           user_id: user.id,
@@ -142,7 +275,6 @@ export default function VFXAnimation() {
       toast.error(`Failed to generate rig: ${error.message}`);
       
       // Create notification for error
-      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('notifications').insert({
           user_id: user.id,
@@ -156,7 +288,7 @@ export default function VFXAnimation() {
     }
   };
 
-  // Color Grading
+  // [COLOR_GRADE] Color Grading - Real Replicate color grading with tweakable options
   const handleColorGrade = async () => {
     if (!selectedFiles.colorGradeMedia || !colorGradeStyle) {
       toast.error('Please upload media and select a color grading style');
@@ -166,20 +298,28 @@ export default function VFXAnimation() {
     setIsProcessing(true);
     try {
       let data, error;
-      if (selectedTypes.colorGradeMedia?.startsWith('video')) {
+      const isVideo = selectedTypes.colorGradeMedia?.startsWith('video');
+      
+      if (isVideo) {
         ({ data, error } = await supabase.functions.invoke('vfx-color-grade', {
           body: {
-            project_id: null,
+            project_id: projectId,
             video_path: selectedFiles.colorGradeMedia,
             style_reference: colorGradeStyle,
-            options: {}
+            options: {
+              contrast: 1.2,
+              saturation: 1.1,
+              brightness: 1.0,
+              temperature: 0,
+              tint: 0
+            }
           }
         }));
       } else {
         ({ data, error } = await supabase.functions.invoke('color-grade', {
           body: {
             imageUrl: selectedFiles.colorGradeMedia,
-            prompt: `Apply ${colorGradeStyle} color grading style to this image. Enhance the cinematic look with professional color correction.`
+            prompt: `Apply ${colorGradeStyle} color grading style to this image. Enhance the cinematic look with professional color correction, vibrant colors, and balanced exposure.`
           }
         }));
       }
@@ -187,10 +327,29 @@ export default function VFXAnimation() {
       if (error) throw error;
       
       setColorGradeResults(data);
+      
+      // Save graded media to project assets for retrieval
+      const gradedUrl = data.output || data.output_data?.graded_video_url;
+      if (gradedUrl) {
+        await supabase.from('user_assets').insert({
+          user_id: user?.id,
+          project_id: projectId || null,
+          filename: `color_graded_${colorGradeStyle}_${Date.now()}.${isVideo ? 'mp4' : 'jpg'}`,
+          file_url: gradedUrl,
+          file_type: isVideo ? 'video' : 'image',
+          storage_path: `color-graded/${colorGradeStyle}/${Date.now()}`,
+          metadata: { 
+            originalMedia: selectedFiles.colorGradeMedia,
+            style: colorGradeStyle,
+            isVideo: isVideo
+          },
+          processing_status: 'completed'
+        });
+      }
+      
       toast.success('Color grading completed!');
       
       // Create notification for completion
-      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('notifications').insert({
           user_id: user.id,
@@ -204,7 +363,6 @@ export default function VFXAnimation() {
       toast.error(`Failed to process color grading: ${error.message}`);
       
       // Create notification for error
-      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('notifications').insert({
           user_id: user.id,
@@ -235,12 +393,77 @@ export default function VFXAnimation() {
       </div>
 
       <Tabs defaultValue="roto" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="import">Import</TabsTrigger>
           <TabsTrigger value="roto">Roto/Track AI</TabsTrigger>
           <TabsTrigger value="rigging">Auto-Rigger</TabsTrigger>
           <TabsTrigger value="grading">Color Grade</TabsTrigger>
           <TabsTrigger value="assets">Asset Library</TabsTrigger>
         </TabsList>
+
+        {/* [SCRIPT_BREAKDOWN] Import & Script Analysis Tab */}
+        <TabsContent value="import" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                Import & Analyze Project Assets
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Upload scripts, audio, video, and images for AI-powered breakdown and analysis
+              </p>
+            </CardHeader>
+            <CardContent>
+              <ImportAssetDropzone 
+                projectId={projectId || 'default'}
+                onAssetUploaded={handleAssetUploaded}
+              />
+            </CardContent>
+          </Card>
+          
+          {/* Project Assets Overview */}
+          {projectAssets.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Project Assets ({projectAssets.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {projectAssets.map((asset) => (
+                    <div key={asset.id} className="p-3 border rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium truncate">{asset.filename}</span>
+                        <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                          {asset.file_type}
+                        </span>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Size: {Math.round((asset.file_size || 0) / 1024)}KB
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Status: {asset.processing_status}
+                      </div>
+                      {asset.file_url && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full mt-2"
+                          onClick={() => window.open(asset.file_url, '_blank')}
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          View
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
 
         {/* Roto/Track AI Tab */}
         <TabsContent value="roto" className="space-y-6">
@@ -401,15 +624,27 @@ export default function VFXAnimation() {
                     <div className="p-4 bg-muted rounded-lg">
                       <h4 className="font-medium mb-2">Rig Generated Successfully</h4>
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>Character: {rigResults.metadata?.characterType}</div>
-                        <div>Complexity: {rigResults.metadata?.rigComplexity}</div>
-                        <div>Bones: {rigResults.rigPlan?.bones?.length || 0}</div>
-                        <div>Controllers: {rigResults.rigPlan?.controllers?.length || 0}</div>
+                        <div>Character: {rigResults.metadata?.characterType || rigResults.output_data?.character_type}</div>
+                        <div>Complexity: {rigResults.metadata?.rigComplexity || rigResults.output_data?.rig_complexity}</div>
+                        <div>Bones: {rigResults.rigPlan?.bones?.length || rigResults.output_data?.bone_count || 0}</div>
+                        <div>Controls: {rigResults.rigPlan?.controllers?.length || rigResults.output_data?.control_count || 0}</div>
                       </div>
                     </div>
                     
                     <div className="space-y-2">
                       <Label>Download Rig Files</Label>
+                      
+                      {/* Real downloadable rig file from job output */}
+                      {rigResults.output_data?.rig_file_url && (
+                        <Button variant="outline" className="w-full" asChild>
+                          <a href={rigResults.output_data.rig_file_url} target="_blank" rel="noopener noreferrer">
+                            <Download className="h-4 w-4 mr-2" />
+                            Download Complete Rig Package (.zip)
+                          </a>
+                        </Button>
+                      )}
+                      
+                      {/* Legacy format support */}
                       <div className="grid grid-cols-2 gap-2">
                         {rigResults.rigFiles?.blender && (
                           <Button variant="outline" size="sm" asChild>
@@ -570,65 +805,80 @@ export default function VFXAnimation() {
           </div>
         </TabsContent>
 
-        {/* VFX Asset Library Tab */}
+        {/* [ASSET_LIBRARY] Asset Library Tab - Persistent storage with retrieval */}
         <TabsContent value="assets" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>VFX Asset Library</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label>Upload VFX Assets</Label>
-                  <FileUploadZone
-                    bucket="vfx-assets"
-                    acceptedFileTypes={['image', 'video']}
-                    multiple={true}
-                    maxSizeMB={100}
-                    onFileUploaded={(url, file) => {
-                      toast.success(`${file.name} uploaded to asset library!`);
-                      // Refetch assets to update the list
-                      window.location.reload();
-                    }}
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label>Your VFX Assets</Label>
-                  {assetsLoading ? (
-                    <p className="text-muted-foreground">Loading assets...</p>
-                  ) : vfxAssets.length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
-                      {vfxAssets.map((asset) => (
-                        <div key={asset.id} className="p-3 border rounded-lg">
-                          <MediaPreview 
-                            url={asset.file_url} 
-                            type={asset.file_type.startsWith('video') ? 'video' : 'image'}
-                            className="mb-2"
-                          />
-                          <p className="text-sm font-medium truncate">{asset.filename}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {Math.round((asset.file_size || 0) / 1024 / 1024 * 100) / 100} MB
-                          </p>
-                          <Button variant="outline" size="sm" className="w-full mt-2" asChild>
-                            <a href={asset.file_url} target="_blank" rel="noopener noreferrer">
-                              <Download className="h-4 w-4 mr-2" />
-                              Download
-                            </a>
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-center py-8">
-                      No VFX assets uploaded yet. Upload some assets to get started!
-                    </p>
-                  )}
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {assetsLoading ? (
+              <div className="col-span-full text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading VFX assets...</p>
               </div>
-            </CardContent>
-          </Card>
+            ) : vfxAssets.length === 0 ? (
+              <div className="col-span-full text-center py-8">
+                <p className="text-muted-foreground">
+                  No VFX assets found. Upload files using the Import tab to build your asset library.
+                </p>
+              </div>
+            ) : (
+              vfxAssets.map((asset) => (
+                <Card key={asset.id} className="overflow-hidden">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium text-sm truncate">{asset.filename}</h4>
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                        {asset.file_type}
+                      </span>
+                    </div>
+                    
+                    {/* Show file preview for images/videos */}
+                    {asset.file_url && (asset.file_type === 'image' || asset.file_type === 'video') && (
+                      <div className="mb-3">
+                        <MediaPreview 
+                          url={asset.file_url} 
+                          type={asset.file_type} 
+                          className="w-full h-32 object-cover rounded"
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="space-y-1 text-xs text-muted-foreground mb-3">
+                      <div>Size: {Math.round((asset.file_size || 0) / 1024)}KB</div>
+                      <div>Type: {asset.mime_type || asset.file_type}</div>
+                      <div>Status: {asset.processing_status}</div>
+                      <div>Created: {new Date(asset.created_at).toLocaleDateString()}</div>
+                      {asset.metadata && Object.keys(asset.metadata).length > 0 && (
+                        <div>Metadata: {Object.keys(asset.metadata).length} fields</div>
+                      )}
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1" 
+                        onClick={() => {
+                          const purpose = asset.file_type === 'video' ? 'video' : 
+                                        asset.file_type === 'image' ? 'colorGradeMedia' : 'model';
+                          setSelectedFiles(prev => ({ ...prev, [purpose]: asset.file_url }));
+                          setSelectedTypes(prev => ({ ...prev, [purpose]: asset.mime_type || asset.file_type }));
+                          toast.success(`${asset.filename} loaded for use!`);
+                        }}
+                      >
+                        <Play className="h-3 w-3 mr-1" />
+                        Use
+                      </Button>
+                      <Button variant="outline" size="sm" className="flex-1" asChild>
+                        <a href={asset.file_url} download>
+                          <Download className="h-3 w-3 mr-1" />
+                          Download
+                        </a>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </div>
