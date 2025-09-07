@@ -127,7 +127,12 @@ export default function Settings() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Theme</Label>
-                <Select value={form.theme} onValueChange={(v) => setForm({ ...form, theme: v })}>
+                <Select value={form.theme} onValueChange={(v) => {
+                  const next = { ...form, theme: v };
+                  setForm(next);
+                  setTheme(v as any); // apply immediately
+                  updateSettingsMutation.mutate(next); // auto-save
+                }}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -158,21 +163,33 @@ export default function Settings() {
                   <Label>Notifications</Label>
                   <p className="text-sm text-muted-foreground">Receive app notifications</p>
                 </div>
-                <Switch checked={form.notifications_enabled} onCheckedChange={(v) => setForm({ ...form, notifications_enabled: v })} />
+                <Switch checked={form.notifications_enabled} onCheckedChange={(v) => {
+                  const next = { ...form, notifications_enabled: v };
+                  setForm(next);
+                  updateSettingsMutation.mutate(next); // auto-save
+                }} />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Email Notifications</Label>
                   <p className="text-sm text-muted-foreground">Receive email updates</p>
                 </div>
-                <Switch checked={form.email_notifications} onCheckedChange={(v) => setForm({ ...form, email_notifications: v })} />
+                <Switch checked={form.email_notifications} onCheckedChange={(v) => {
+                  const next = { ...form, email_notifications: v };
+                  setForm(next);
+                  updateSettingsMutation.mutate(next); // auto-save
+                }} />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Auto Save</Label>
                   <p className="text-sm text-muted-foreground">Automatically save work</p>
                 </div>
-                <Switch checked={form.auto_save} onCheckedChange={(v) => setForm({ ...form, auto_save: v })} />
+                <Switch checked={form.auto_save} onCheckedChange={(v) => {
+                  const next = { ...form, auto_save: v };
+                  setForm(next);
+                  updateSettingsMutation.mutate(next); // auto-save
+                }} />
               </div>
             </div>
 

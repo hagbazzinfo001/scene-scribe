@@ -84,13 +84,27 @@ serve(async (req) => {
     }
 
     try {
-      // Get signed download URL for input video
-      const { data: downloadData, error: downloadError } = await supabase.storage
-        .from('user_video')
-        .createSignedUrl(video_path, 3600);
+      // Resolve the correct bucket for the provided video path
+      const candidateBuckets = (options?.bucket && typeof options.bucket === 'string')
+        ? [options.bucket]
+        : ['video-uploads', 'user_video'];
 
-      if (downloadError) {
-        throw new Error(`Failed to get download URL: ${downloadError.message}`);
+      let downloadData: { signedUrl: string } | null = null;
+      let chosenBucket = '';
+      let lastErr: any = null;
+
+      for (const b of candidateBuckets) {
+        const { data, error } = await supabase.storage.from(b).createSignedUrl(video_path, 3600);
+        if (!error && data) {
+          downloadData = data;
+          chosenBucket = b;
+          break;
+        }
+        lastErr = error;
+      }
+
+      if (!downloadData) {
+        throw new Error(`Failed to get download URL for '${video_path}'. Tried buckets: ${candidateBuckets.join(', ')}. ${lastErr?.message || ''}`);
       }
 
       // Call Replicate API for video style transfer/color grading
@@ -182,17 +196,17 @@ serve(async (req) => {
               message: `Your video has been color graded with ${style_reference} style.`
             });
 
-          return new Response(
-            JSON.stringify({
-              success: true,
-              job_id: job.id,
-              graded_video_url: gradedVideoUrl,
-              preview_url: previewUrl,
-              style_applied: style_reference,
-              message: 'Color grading completed successfully'
-            }),
-            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+      return new Response(
+        JSON.stringify({
+          success: true,
+          job_id: job.id,
+          graded_video_url: gradedVideoUrl,
+          preview_url: previewUrl,
+          style_applied: style_reference,
+          message: 'Color grading completed successfully'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
           
         } else if (pollData.status === 'failed') {
           throw new Error(`Replicate processing failed: ${pollData.error}`);

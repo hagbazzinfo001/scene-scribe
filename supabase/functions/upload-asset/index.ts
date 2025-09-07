@@ -37,16 +37,22 @@ serve(async (req) => {
       );
     }
 
-    const { filename, contentType, projectId, fileType } = await req.json();
+  const { filename, contentType, projectId, fileType } = await req.json();
 
-    if (!filename || !contentType || !projectId || !fileType) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Missing required fields: filename, contentType, projectId, fileType' 
-        }),
-        { status: 400, headers: corsHeaders }
-      );
-    }
+  const isUUID = (v: string) =>
+    typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+
+  const validProjectId = isUUID(projectId) ? projectId : null;
+
+  if (!filename || !contentType || !fileType) {
+    return new Response(
+      JSON.stringify({ 
+        error: 'Missing required fields: filename, contentType, fileType',
+        hint: 'projectId is optional; it will be set to null if not provided or invalid.' 
+      }),
+      { status: 400, headers: corsHeaders }
+    );
+  }
 
     // Validate file type
     const validFileTypes = ['script', 'audio', 'video', 'image'];
@@ -76,10 +82,11 @@ serve(async (req) => {
       );
     }
 
-    // Generate unique file path
-    const timestamp = Date.now();
-    const cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const storagePath = `${user.id}/${projectId}/${timestamp}_${cleanFilename}`;
+  // Generate unique file path
+  const timestamp = Date.now();
+  const cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+  const projectSegment = validProjectId ?? 'general';
+  const storagePath = `${user.id}/${projectSegment}/${timestamp}_${cleanFilename}`;
 
     // Determine bucket based on file type
     const bucketMap = {
@@ -103,21 +110,21 @@ serve(async (req) => {
       );
     }
 
-    // Create file record in user_assets table
-    const { data: asset, error: insertError } = await supabase
-      .from('user_assets')
-      .insert({
-        user_id: user.id,
-        project_id: projectId,
-        filename: filename,
-        file_url: '', // Will be set after upload confirmation
-        file_type: fileType,
-        mime_type: contentType,
-        storage_path: storagePath,
-        processing_status: 'pending'
-      })
-      .select()
-      .single();
+  // Create file record in user_assets table
+  const { data: asset, error: insertError } = await supabase
+    .from('user_assets')
+    .insert({
+      user_id: user.id,
+      project_id: validProjectId, // nullable when not provided/invalid
+      filename: filename,
+      file_url: '', // Will be set after upload confirmation
+      file_type: fileType,
+      mime_type: contentType,
+      storage_path: storagePath,
+      processing_status: 'pending'
+    })
+    .select()
+    .single();
 
     if (insertError) {
       console.error('Asset insert error:', insertError);
