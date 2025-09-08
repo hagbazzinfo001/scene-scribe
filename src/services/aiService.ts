@@ -155,15 +155,16 @@ export class AIService {
         provider,
         model,
         endpoint,
-        tokens_used: metrics.tokensUsed,
-        cost_estimate: metrics.costEstimate,
-        response_time_ms: metrics.responseTimeMs,
-        success: metrics.success,
-        error_type: metrics.errorType,
+        tokens_used: metrics.tokensUsed || null,
+        cost_estimate: metrics.costEstimate || null,
+        response_time_ms: metrics.responseTimeMs || null,
+        success: metrics.success ?? false,
+        error_type: metrics.errorType || null,
         project_id: safeProjectId
       });
     } catch (error) {
-      console.error('Failed to track AI usage:', error);
+      // Log and swallow to avoid cascading failures
+      console.error('trackUsage failed (non-fatal):', error);
     }
   }
 
@@ -181,12 +182,21 @@ export class AIService {
   }
 
   async chatAssistant(message: string, projectId?: string, options?: AIServiceOptions) {
-    return this.callAI('ai-assistant-enhanced', { message, projectId }, {
-      provider: 'openai',
-      model: 'gpt-5-2025-08-07',
-      endpoint: 'ai-assistant-enhanced',
-      ...options
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('chat-send', {
+        body: { userMessage: message, projectId }
+      });
+      
+      if (error) throw error;
+      return { data: data.response, response: data.response, metrics: data.metrics };
+    } catch (error) {
+      console.error('Chat assistant error:', error);
+      return { 
+        data: "Sorry, I'm having trouble connecting. Try again later.",
+        response: "Sorry, I'm having trouble connecting. Try again later.",
+        metrics: { success: false, errorType: error.message }
+      };
+    }
   }
 
   // Migration helper methods
