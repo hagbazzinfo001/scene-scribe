@@ -12,6 +12,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChatAssistant } from '@/components/ChatAssistant';
 import { UsageAnalytics } from '@/components/UsageAnalytics';
 import { ImportAssetDropzone } from '@/components/ImportAssetDropzone';
+import { BreakdownResults } from '@/components/BreakdownResults';
 import jsPDF from 'jspdf';
 
 export default function ProjectWorkspace() {
@@ -55,13 +56,13 @@ export default function ProjectWorkspace() {
     enabled: !!projectId,
   });
 
-  // Fetch analysis results
-  const { data: analyses = [] } = useQuery({
-    queryKey: ['analyses', projectId],
+  // Fetch jobs for this project
+  const { data: jobs = [] } = useQuery({
+    queryKey: ['jobs', projectId],
     queryFn: async () => {
       if (!projectId) return [];
       const { data, error } = await supabase
-        .from('analysis_cache')
+        .from('jobs')
         .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
@@ -89,10 +90,10 @@ export default function ProjectWorkspace() {
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
-        table: 'analysis_cache',
+        table: 'jobs',
         filter: `project_id=eq.${projectId}`
       }, () => {
-        queryClient.invalidateQueries({ queryKey: ['analyses', projectId] });
+        queryClient.invalidateQueries({ queryKey: ['jobs', projectId] });
       })
       .subscribe();
 
@@ -107,63 +108,6 @@ export default function ProjectWorkspace() {
       title: "Asset uploaded",
       description: `${asset.filename} has been uploaded and is being analyzed.`,
     });
-  };
-
-  const exportAnalysis = (analysis: any, format: 'json' | 'csv' | 'pdf' = 'json') => {
-    if (format === 'csv' && analysis.result.scenes) {
-      // CSV export for script breakdown
-      const csvData = [
-        ['Scene', 'Location', 'Time', 'Characters', 'Description', 'Props'],
-        ...analysis.result.scenes.map((scene: any) => [
-          scene.number || '',
-          scene.location || '',
-          scene.time || '',
-          (scene.characters || []).join(', '),
-          scene.description || '',
-          (scene.props || []).join(', ')
-        ])
-      ];
-      
-      const csvContent = csvData.map(row => 
-        row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',')
-      ).join('\n');
-      
-      const dataBlob = new Blob([csvContent], { type: 'text/csv' });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `script-breakdown-${Date.now()}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
-    } else if (format === 'pdf' && analysis.result.scenes) {
-      const doc = new jsPDF();
-      doc.setFontSize(14);
-      doc.text('Script Breakdown', 14, 20);
-      let y = 30;
-      const scenes = analysis.result.scenes as any[];
-      scenes.slice(0, 100).forEach((scene: any, idx: number) => {
-        const line = `Scene ${scene.number || idx + 1} - ${scene.location || ''} - ${scene.time || ''}`;
-        doc.setFontSize(12);
-        doc.text(line, 14, y);
-        y += 6;
-        const desc = (scene.description || '').toString();
-        const split = doc.splitTextToSize(desc, 180);
-        split.forEach((row: string) => { doc.text(row, 14, y); y += 6; });
-        y += 4;
-        if (y > 270) { doc.addPage(); y = 20; }
-      });
-      doc.save(`script-breakdown-${Date.now()}.pdf`);
-    } else {
-      // JSON export (default)
-      const dataStr = JSON.stringify(analysis.result, null, 2);
-      const dataBlob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `analysis-${analysis.analysis_type}-${Date.now()}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-    }
   };
 
   if (isLoading) {
@@ -189,11 +133,29 @@ export default function ProjectWorkspace() {
               <p className="text-muted-foreground">{project.description}</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  toast({
+                    title: "Coming Soon",
+                    description: "Project collaboration features will be available soon.",
+                  });
+                }}
+              >
                 <Users className="h-4 w-4 mr-2" />
                 Invite
               </Button>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  toast({
+                    title: "Coming Soon", 
+                    description: "Project settings will be available soon.",
+                  });
+                }}
+              >
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Button>
@@ -213,13 +175,11 @@ export default function ProjectWorkspace() {
 
             <TabsContent value="assets" className="flex-1">
               <div className="space-y-6">
-                {/* Import Assets */}
                 <ImportAssetDropzone 
                   projectId={projectId!} 
                   onAssetUploaded={handleAssetUploaded}
                 />
 
-                {/* Assets List */}
                 {assets.length > 0 && (
                   <Card>
                     <CardHeader>
@@ -278,154 +238,77 @@ export default function ProjectWorkspace() {
             </TabsContent>
 
             <TabsContent value="breakdown" className="flex-1">
-              {analyses.length > 0 ? (
-                <div className="space-y-4">
-                  {analyses.map((analysis: any) => (
-                    <Card key={analysis.id}>
-                      <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                          <span>{analysis.analysis_type.replace('super_breakdown_', '').toUpperCase()} Analysis</span>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => exportAnalysis(analysis, 'csv')}
-                            >
-                              <Download className="h-4 w-4 mr-2" />
-                              Export CSV
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => exportAnalysis(analysis, 'pdf')}
-                            >
-                              <Download className="h-4 w-4 mr-2" />
-                              Export PDF
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => exportAnalysis(analysis)}
-                            >
-                              <Download className="h-4 w-4 mr-2" />
-                              Export JSON
-                            </Button>
-                          </div>
-                        </CardTitle>
-                        <CardDescription>
-                          AI-generated breakdown and analysis
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          {/* Script Analysis */}
-                          {analysis.analysis_type.includes('script') && analysis.result.scenes && (
-                            <>
-                              <div>
-                                <h4 className="font-semibold mb-2">Scenes ({analysis.result.scenes.length})</h4>
-                                <div className="grid gap-2 max-h-40 overflow-y-auto">
-                                  {analysis.result.scenes.slice(0, 5).map((scene: any, idx: number) => (
-                                    <div key={idx} className="text-sm border rounded p-2">
-                                      <div className="font-medium">Scene {scene.number}: {scene.location}</div>
-                                      <div className="text-muted-foreground">{scene.description}</div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                              {analysis.result.characters && (
-                                <div>
-                                  <h4 className="font-semibold mb-2">Characters ({analysis.result.characters.length})</h4>
-                                  <div className="flex flex-wrap gap-2">
-                                    {analysis.result.characters.map((char: any, idx: number) => (
-                                      <Badge key={idx} variant="secondary">
-                                        {char.name} ({char.importance})
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </>
-                          )}
-
-                          {/* Audio Analysis */}
-                          {analysis.analysis_type.includes('audio') && (
-                            <div>
-                              <h4 className="font-semibold mb-2">Audio Transcript</h4>
-                              <div className="text-sm bg-muted p-3 rounded">
-                                {analysis.result.transcript || 'No transcript available'}
-                              </div>
-                              {analysis.result.speakers && (
-                                <div className="mt-2">
-                                  <span className="text-xs text-muted-foreground">
-                                    Speakers: {analysis.result.speakers.join(', ')}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Video Analysis */}
-                          {analysis.analysis_type.includes('video') && (
-                            <div>
-                              <h4 className="font-semibold mb-2">Video Analysis</h4>
-                              {analysis.result.shots && (
-                                <div className="space-y-2">
-                                  {analysis.result.shots.slice(0, 3).map((shot: any, idx: number) => (
-                                    <div key={idx} className="text-sm border rounded p-2">
-                                      <div className="font-medium">{shot.description}</div>
-                                      <div className="text-muted-foreground">
-                                        {shot.startTime}s - {shot.endTime}s
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                              {analysis.result.vfxFlags && (
-                                <div className="mt-3">
-                                  <h5 className="font-medium mb-1">VFX Requirements</h5>
-                                  <div className="flex flex-wrap gap-1">
-                                    {analysis.result.vfxFlags.map((flag: string, idx: number) => (
-                                      <Badge key={idx} variant="outline">{flag}</Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Image Analysis */}
-                          {analysis.analysis_type.includes('image') && (
-                            <div>
-                              <h4 className="font-semibold mb-2">Image Analysis</h4>
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>Tags: {analysis.result.tags?.join(', ') || 'None'}</div>
-                                <div>Composition: {analysis.result.composition || 'Unknown'}</div>
-                                <div>Lighting: {analysis.result.lighting || 'Unknown'}</div>
-                                <div>VFX Suitability: {analysis.result.vfxSuitability || 'Unknown'}</div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Super Breakdown Analysis</CardTitle>
-                    <CardDescription>
-                      AI-generated analysis of your uploaded assets
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Upload assets to see AI-generated breakdowns</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              <div className="mb-4">
+                <Button 
+                  onClick={async () => {
+                    try {
+                      const { data, error } = await supabase.functions.invoke('trigger-jobs');
+                      if (error) throw error;
+                      toast({
+                        title: "Processing Jobs",
+                        description: `Processed ${data.processed} jobs successfully.`,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ['jobs', projectId] });
+                    } catch (error: any) {
+                      toast({
+                        title: "Error",
+                        description: error.message,
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Process Pending Jobs
+                </Button>
+              </div>
+              
+              <BreakdownResults 
+                jobs={jobs}
+                onExport={(job, format) => {
+                  if (format === 'csv' && job.output_data?.scenes) {
+                    const csvData = [
+                      ['Scene', 'Location', 'Description', 'Characters'],
+                      ...job.output_data.scenes.map((scene: any) => [
+                        scene.id || '',
+                        scene.location || '',
+                        scene.description || '',
+                        (scene.characters || []).join(', ')
+                      ])
+                    ];
+                    
+                    const csvContent = csvData.map(row => 
+                      row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(',')
+                    ).join('\n');
+                    
+                    const dataBlob = new Blob([csvContent], { type: 'text/csv' });
+                    const url = URL.createObjectURL(dataBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `script-breakdown-${Date.now()}.csv`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                  } else if (format === 'pdf' && job.output_data?.scenes) {
+                    const doc = new jsPDF();
+                    doc.setFontSize(14);
+                    doc.text('Script Breakdown', 14, 20);
+                    let y = 30;
+                    
+                    job.output_data.scenes.slice(0, 50).forEach((scene: any, idx: number) => {
+                      const line = `Scene ${scene.id || idx + 1} - ${scene.location || ''}`;
+                      doc.setFontSize(12);
+                      doc.text(line, 14, y);
+                      y += 6;
+                      const desc = (scene.description || '').toString();
+                      const split = doc.splitTextToSize(desc, 180);
+                      split.forEach((row: string) => { doc.text(row, 14, y); y += 6; });
+                      y += 4;
+                      if (y > 270) { doc.addPage(); y = 20; }
+                    });
+                    doc.save(`script-breakdown-${Date.now()}.pdf`);
+                  }
+                }}
+              />
             </TabsContent>
 
             <TabsContent value="vfx" className="flex-1">

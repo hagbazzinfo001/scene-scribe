@@ -71,7 +71,12 @@ export function ChatAssistant({ projectId }: ChatAssistantProps) {
 
         if (messageError) throw messageError;
 
-        const { data: aiResponse } = await aiService.chatAssistant(userMessage, projectId);
+        const { data: result, error: aiError } = await supabase.functions.invoke('chat-send', {
+          body: { userMessage, projectId }
+        });
+        
+        if (aiError) throw aiError;
+        const aiResponse = result;
 
         // Save AI response
         const { error: aiMessageError } = await supabase
@@ -99,7 +104,12 @@ export function ChatAssistant({ projectId }: ChatAssistantProps) {
         };
         setLocalMessages((prev) => [...prev, userMsg]);
 
-        const { data: aiResponse } = await aiService.chatAssistant(userMessage, undefined);
+        const { data: result, error: aiError } = await supabase.functions.invoke('chat-send', {
+          body: { userMessage, projectId: null }
+        });
+        
+        if (aiError) throw aiError;
+        const aiResponse = result;
 
         const aiMsg: ChatMessage = {
           id: (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)),
