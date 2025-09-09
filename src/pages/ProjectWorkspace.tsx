@@ -13,6 +13,9 @@ import { ChatAssistant } from '@/components/ChatAssistant';
 import { UsageAnalytics } from '@/components/UsageAnalytics';
 import { ImportAssetDropzone } from '@/components/ImportAssetDropzone';
 import { BreakdownResults } from '@/components/BreakdownResults';
+import { JobPreview } from '@/components/JobPreview';
+import { LanguageToggle } from '@/components/LanguageToggle';
+import { useTranslation } from 'react-i18next';
 import jsPDF from 'jspdf';
 
 export default function ProjectWorkspace() {
@@ -20,6 +23,7 @@ export default function ProjectWorkspace() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [selectedTab, setSelectedTab] = useState('assets');
 
   // Fetch project details
@@ -105,9 +109,43 @@ export default function ProjectWorkspace() {
   const handleAssetUploaded = (asset: any) => {
     queryClient.invalidateQueries({ queryKey: ['assets', projectId] });
     toast({
-      title: "Asset uploaded",
+      title: t('asset_uploaded'),
       description: `${asset.filename} has been uploaded and is being analyzed.`,
     });
+  };
+
+  const handleDeleteAsset = async (assetId: string) => {
+    if (!confirm(t('delete_confirm'))) return;
+    
+    try {
+      const { error } = await supabase.functions.invoke('delete-asset', {
+        body: { asset_id: assetId }
+      });
+      
+      if (error) throw error;
+      
+      queryClient.invalidateQueries({ queryKey: ['assets', projectId] });
+      toast({
+        title: "Asset deleted",
+        description: "Asset has been removed successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: t('delete_failed'),
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleJobDownload = (job: any) => {
+    const downloadUrl = job.output_data?.output_url || job.result?.output_url;
+    if (downloadUrl) {
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${job.type}-output-${job.id}`;
+      link.click();
+    }
   };
 
   if (isLoading) {
@@ -133,31 +171,32 @@ export default function ProjectWorkspace() {
               <p className="text-muted-foreground">{project.description}</p>
             </div>
             <div className="flex gap-2">
+              <LanguageToggle variant="mini" />
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => {
                   toast({
-                    title: "Coming Soon",
-                    description: "Project collaboration features will be available soon.",
+                    title: t('coming_soon'),
+                    description: t('invite_coming'),
                   });
                 }}
               >
                 <Users className="h-4 w-4 mr-2" />
-                Invite
+                {t('invite')}
               </Button>
               <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => {
                   toast({
-                    title: "Coming Soon", 
-                    description: "Project settings will be available soon.",
+                    title: t('coming_soon'), 
+                    description: t('settings_coming'),
                   });
                 }}
               >
                 <Settings className="h-4 w-4 mr-2" />
-                Settings
+                {t('settings')}
               </Button>
             </div>
           </div>
@@ -218,6 +257,14 @@ export default function ProjectWorkspace() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteAsset(asset.id)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                {t('delete')}
+                              </Button>
                               {asset.processing_status === 'completed' && (
                                 <Badge variant="default">Ready</Badge>
                               )}
@@ -312,21 +359,64 @@ export default function ProjectWorkspace() {
             </TabsContent>
 
             <TabsContent value="vfx" className="flex-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle>VFX & Animation Tools</CardTitle>
-                  <CardDescription>
-                    AI-powered roto-scoping, auto-rigging, and color processing
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <iframe 
-                    src={`/vfx-animation/${projectId}`} 
-                    className="w-full h-[600px] border-0 rounded-lg"
-                    title="VFX Tools"
-                  />
-                </CardContent>
-              </Card>
+              <div className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {/* Roto Plugin */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>{t('roto')}</CardTitle>
+                      <CardDescription>AI-powered background removal</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Button className="w-full" onClick={() => setSelectedTab('assets')}>
+                        {t('upload')} Video
+                      </Button>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* Auto-Rig Plugin */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>{t('auto_rig')}</CardTitle>
+                      <CardDescription>Automatic character rigging</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Button disabled className="w-full">
+                        {t('coming_soon')}
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {t('auto_rig_coming')}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  
+                  {/* Color Grade Plugin */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>{t('color_grade')}</CardTitle>
+                      <CardDescription>AI color correction</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Button className="w-full" onClick={() => setSelectedTab('assets')}>
+                        {t('upload')} Video
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+                
+                {/* Job Results */}
+                {jobs.filter(job => ['roto', 'color-grade', 'auto-rig'].includes(job.type)).length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">VFX Results</h3>
+                    {jobs
+                      .filter(job => ['roto', 'color-grade', 'auto-rig'].includes(job.type))
+                      .map(job => (
+                        <JobPreview key={job.id} job={job} onDownload={handleJobDownload} />
+                      ))
+                    }
+                  </div>
+                )}
+              </div>
             </TabsContent>
 
             <TabsContent value="schedule" className="flex-1">

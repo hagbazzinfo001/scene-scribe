@@ -9,13 +9,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Save } from 'lucide-react';
+import { Save, TestTube } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { useTranslation } from 'react-i18next';
+import { LanguageToggle } from '@/components/LanguageToggle';
 
 export default function Settings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { t, i18n } = useTranslation();
 
   // Fetch user settings with real backend
   const { data: userSettings, isLoading } = useQuery({
@@ -144,16 +147,24 @@ export default function Settings() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Language</Label>
-                <Select value={form.language} onValueChange={(v) => setForm({ ...form, language: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="de">German</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>{t('language')}</Label>
+                <div className="flex items-center gap-4">
+                  <Select value={form.language} onValueChange={(v) => {
+                    const next = { ...form, language: v };
+                    setForm(next);
+                    i18n.changeLanguage(v); // apply immediately
+                    updateSettingsMutation.mutate(next); // auto-save
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="en">{t('english')}</SelectItem>
+                      <SelectItem value="de">{t('german')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <LanguageToggle variant="mini" />
+                </div>
               </div>
             </div>
             
@@ -193,13 +204,39 @@ export default function Settings() {
               </div>
             </div>
 
-            <Button onClick={() => {
-              updateSettingsMutation.mutate(form);
-              setTheme(form.theme as any);
-            }}>
-              <Save className="h-4 w-4 mr-2" />
-              Save Settings
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => {
+                updateSettingsMutation.mutate(form);
+                setTheme(form.theme as any);
+              }}>
+                <Save className="h-4 w-4 mr-2" />
+                Save Settings
+              </Button>
+              
+              <Button 
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    const { data, error } = await supabase.functions.invoke('test-keys');
+                    if (error) throw error;
+                    
+                    toast({
+                      title: "API Keys Test",
+                      description: `OpenAI: ${data.results.openai.status}, Replicate: ${data.results.replicate.status}`,
+                    });
+                  } catch (error: any) {
+                    toast({
+                      title: "Test Failed",
+                      description: error.message,
+                      variant: "destructive",
+                    });
+                  }
+                }}
+              >
+                <TestTube className="h-4 w-4 mr-2" />
+                Test API Keys
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
