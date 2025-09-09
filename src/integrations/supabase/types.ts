@@ -289,7 +289,9 @@ export type Database = {
           error_message: string | null
           id: string
           input_data: Json
+          input_path: string | null
           output_data: Json | null
+          output_path: string | null
           payload: Json | null
           processing_time_ms: number | null
           project_id: string | null
@@ -310,7 +312,9 @@ export type Database = {
           error_message?: string | null
           id?: string
           input_data: Json
+          input_path?: string | null
           output_data?: Json | null
+          output_path?: string | null
           payload?: Json | null
           processing_time_ms?: number | null
           project_id?: string | null
@@ -331,7 +335,9 @@ export type Database = {
           error_message?: string | null
           id?: string
           input_data?: Json
+          input_path?: string | null
           output_data?: Json | null
+          output_path?: string | null
           payload?: Json | null
           processing_time_ms?: number | null
           project_id?: string | null
@@ -761,6 +767,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_user_asset: {
+        Args: { asset_id: string }
+        Returns: Json
+      }
       user_can_access_project: {
         Args: { p_project_id: string }
         Returns: boolean
