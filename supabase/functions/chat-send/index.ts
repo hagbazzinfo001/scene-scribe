@@ -19,7 +19,7 @@ async function trackUsage(metrics: any, projectId?: string) {
     const safeProjectId = (projectId && isValidUUID(projectId)) ? projectId : null;
     await supabase.from("ai_usage_analytics").insert({
       provider: metrics.provider || 'openai',
-      model: metrics.model || 'gpt-4o-mini',
+      model: metrics.model || 'gpt-5-2025-08-07',
       endpoint: metrics.endpoint || 'chat-send',
       tokens_used: metrics.tokensUsed || null,
       cost_estimate: metrics.costEstimate || null,
@@ -74,13 +74,12 @@ async function callAI(message: string, projectContext?: string) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-2025-08-07',
         messages: [
           { role: 'system', content: context },
           { role: 'user', content: message }
         ],
-        max_tokens: 1000,
-        temperature: 0.7,
+        max_completion_tokens: 1000,
       }),
     });
 
@@ -98,7 +97,7 @@ async function callAI(message: string, projectContext?: string) {
         tokensUsed: data.usage?.total_tokens || 0,
         responseTimeMs: responseTime,
         provider: 'openai',
-        model: 'gpt-4o-mini'
+        model: 'gpt-5-2025-08-07'
       }
     };
   } catch (error) {
@@ -110,7 +109,7 @@ async function callAI(message: string, projectContext?: string) {
         errorType: error.message,
         responseTimeMs: responseTime,
         provider: 'openai',
-        model: 'gpt-4o-mini'
+        model: 'gpt-5-2025-08-07'
       }
     };
   }
@@ -146,19 +145,43 @@ serve(async (req) => {
     const projectContext = isValidUUID(projectId) ? projectId : null;
 
     // 1) Persist user message - best-effort (do not fail entire flow)
+    let userMsgRow;
     try {
-      await supabase.from("chat_messages").insert({
+      const { data, error } = await supabase.from("chat_messages").insert({
         project_id: projectContext,
         user_id: user.id,
         message: userMessage,
         is_ai_response: false
-      });
+      }).select().single();
+      if (error) throw error;
+      userMsgRow = data;
     } catch (err) {
       console.error("chat: failed to persist user message (non-fatal)", err);
+      // continue — we still call the AI
     }
 
     // 2) Call AI
-    const aiResult = await callAI(userMessage, projectContext);
+    let aiResult;
+    try {
+      aiResult = await callAI(userMessage, projectContext);
+    } catch (err) {
+      console.error("chat: aiService.callAI error", err);
+      // Persist an error message entry and return friendly message
+      try {
+        await supabase.from("chat_messages").insert({
+          project_id: projectContext,
+          user_id: user.id,
+          message: "Sorry — I couldn't reach the AI service. Try again later.",
+          is_ai_response: true
+        });
+      } catch (e) {
+        console.error("chat: failed to persist fallback AI message", e);
+      }
+      return new Response(
+        JSON.stringify({ error: "AI call failed. Logged. Try again." }),
+        { status: 502, headers: corsHeaders }
+      );
+    }
 
     // 3) Persist AI response (best-effort)
     try {

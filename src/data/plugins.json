@@ -1,0 +1,80 @@
+[
+  {
+    "id": "script-breakdown",
+    "name": "Script Breakdown",
+    "defaultModel": "gpt-5-2025-08-07",
+    "paramsSchema": {
+      "depth": {
+        "type": "string",
+        "default": "detailed",
+        "options": ["basic", "detailed", "comprehensive"]
+      }
+    },
+    "enabled": true,
+    "visible": true,
+    "description": "AI-powered script analysis and breakdown"
+  },
+  {
+    "id": "roto",
+    "name": "Rotoscoping", 
+    "defaultModel": "cjwbw/rembg:latest",
+    "paramsSchema": {
+      "maskThreshold": {
+        "type": "number",
+        "default": 0.5,
+        "min": 0,
+        "max": 1
+      }
+    },
+    "enabled": true,
+    "visible": true,
+    "description": "AI-powered video background removal and rotoscoping"
+  },
+  {
+    "id": "audio-clean",
+    "name": "Audio Cleanup",
+    "defaultModel": "johan-gustafsson/denoiser:latest", 
+    "paramsSchema": {
+      "aggressiveness": {
+        "type": "number",
+        "default": 1,
+        "min": 0,
+        "max": 3
+      }
+    },
+    "enabled": true,
+    "visible": true,
+    "description": "AI-powered audio noise reduction and enhancement"
+  },
+  {
+    "id": "color-grade", 
+    "name": "Color Grade",
+    "defaultModel": "stability-ai/simple-style-transfer-video:latest",
+    "paramsSchema": {
+      "style": {
+        "type": "string",
+        "default": "cinematic",
+        "options": ["cinematic", "warm", "cool", "vintage", "modern"]
+      }
+    },
+    "enabled": true,
+    "visible": true,
+    "description": "AI-powered color grading and style transfer"
+  },
+  {
+    "id": "auto-rig",
+    "name": "Auto Rig",
+    "defaultModel": null,
+    "paramsSchema": {
+      "targetRig": {
+        "type": "string", 
+        "default": "humanoid",
+        "options": ["humanoid", "quadruped", "creature"]
+      }
+    },
+    "enabled": false,
+    "visible": true,
+    "comingSoonText": "Auto-Rig is coming soon — sign up for beta access.",
+    "description": "Automated character rigging for 3D models"
+  }
+]
