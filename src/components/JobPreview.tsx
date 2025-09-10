@@ -36,7 +36,7 @@ export function JobPreview({ job, onDownload }: JobPreviewProps) {
     );
   }
 
-  const publicUrl = job.output_data?.output_url || job.result?.output_url;
+  const publicUrl = job.result?.publicUrl || job.output_data?.publicUrl || job.meta?.publicUrl || job.output_data?.output_url || job.result?.output_url;
   
   if (!publicUrl) {
     return (
@@ -52,6 +52,7 @@ export function JobPreview({ job, onDownload }: JobPreviewProps) {
 
   const isAudio = job.type === 'audio-clean' || job.type === 'audio';
   const isVideo = job.type === 'roto' || job.type === 'color-grade';
+  const isScript = job.type === 'script-breakdown' || job.type === 'script_breakdown';
   const isImage = job.type === 'auto-rig' || publicUrl.includes('.png') || publicUrl.includes('.jpg');
 
   return (
@@ -71,6 +72,28 @@ export function JobPreview({ job, onDownload }: JobPreviewProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
+          {/* Script breakdown results */}
+          {isScript && job.result && (
+            <div className="space-y-3">
+              <h4 className="font-semibold">Script Analysis Results</h4>
+              {job.result.scenes && (
+                <div>
+                  <p className="text-sm font-medium">Scenes: {job.result.scenes.length}</p>
+                  {job.result.scenes.slice(0, 3).map((scene: any, idx: number) => (
+                    <div key={idx} className="text-xs text-muted-foreground pl-2 border-l-2 border-muted mt-1">
+                      {scene.scene_id}: {scene.short_description}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {job.result.asset_list && (
+                <div>
+                  <p className="text-sm font-medium">Assets: {job.result.asset_list.length}</p>
+                </div>
+              )}
+            </div>
+          )}
+          
           {isAudio && (
             <audio 
               controls 

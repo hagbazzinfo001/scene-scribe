@@ -8,7 +8,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { aiService } from '@/services/aiService';
 
 interface ChatMessage {
   id: string;
@@ -53,74 +52,58 @@ export function ChatAssistant({ projectId }: ChatAssistantProps) {
 
   const messages = inProjectContext ? dbMessages : localMessages;
 
-// Send message mutation
+  // Send message mutation with robust error handling
   const sendMessageMutation = useMutation({
     mutationFn: async (userMessage: string) => {
-      if (inProjectContext) {
-        // Persisted project chat
-        const { error: messageError } = await supabase
-          .from('chat_messages')
-          .insert([
-            {
-              project_id: projectId!,
-              user_id: user!.id,
-              message: userMessage,
-              is_ai_response: false,
-            }
-          ]);
-
-        if (messageError) throw messageError;
-
-        const { data: result, error: aiError } = await supabase.functions.invoke('chat-send', {
-          body: { userMessage, projectId }
-        });
+      try {
+        const authToken = (await supabase.auth.getSession()).data.session?.access_token;
         
-        if (aiError) throw aiError;
-        const aiResponse = result;
+        if (!authToken) {
+          throw new Error('Authentication required');
+        }
 
-        // Save AI response
-        const { error: aiMessageError } = await supabase
-          .from('chat_messages')
-          .insert([
-            {
-              project_id: projectId!,
-              user_id: user!.id,
-              message: (aiResponse && (aiResponse.message || aiResponse.response)) ? (aiResponse.message || aiResponse.response) : 'I’m ready to help with script breakdowns, schedules, props, and VFX planning. Tip: add your OpenAI API key in Supabase Edge Function secrets (OPENAI_API_KEY) to enable smart answers.',
-              is_ai_response: true,
+        // Call the robust chat-send endpoint
+        const { data: aiResponse, error: aiError } = await supabase.functions
+          .invoke('chat-send', {
+            body: { 
+              projectId: inProjectContext ? projectId : null, 
+              userMessage: userMessage 
+            },
+            headers: {
+              Authorization: `Bearer ${authToken}`
             }
-          ]);
+          });
 
-        if (aiMessageError) throw aiMessageError;
+        if (aiError) {
+          console.error('Error calling AI:', aiError);
+          throw new Error(aiError.message || 'Failed to get AI response');
+        }
+
+        if (!inProjectContext) {
+          // For local chat, also update local state
+          const userMsg: ChatMessage = {
+            id: crypto.randomUUID(),
+            message: userMessage,
+            is_ai_response: false,
+            created_at: new Date().toISOString(),
+            user_id: user?.id || 'local'
+          };
+
+          const aiMsg: ChatMessage = {
+            id: crypto.randomUUID(),
+            message: aiResponse?.response || 'No response received',
+            is_ai_response: true,
+            created_at: new Date().toISOString(),
+            user_id: user?.id || 'local'
+          };
+
+          setLocalMessages(prev => [...prev, userMsg, aiMsg]);
+        }
 
         return aiResponse;
-      } else {
-        // Local, non-persistent chat (e.g., global chat)
-        const userMsg: ChatMessage = {
-          id: (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)),
-          message: userMessage,
-          is_ai_response: false,
-          created_at: new Date().toISOString(),
-          user_id: user?.id || 'anon',
-        };
-        setLocalMessages((prev) => [...prev, userMsg]);
-
-        const { data: result, error: aiError } = await supabase.functions.invoke('chat-send', {
-          body: { userMessage, projectId: null }
-        });
-        
-        if (aiError) throw aiError;
-        const aiResponse = result;
-
-        const aiMsg: ChatMessage = {
-          id: (crypto?.randomUUID?.() || Math.random().toString(36).slice(2)),
-          message: (aiResponse && (aiResponse.message || aiResponse.response)) ? (aiResponse.message || aiResponse.response) : 'I’m ready to help with script breakdowns, schedules, props, and VFX planning. Tip: add your OpenAI API key in Supabase Edge Function secrets (OPENAI_API_KEY) to enable smart answers.',
-          is_ai_response: true,
-          created_at: new Date().toISOString(),
-          user_id: user?.id || 'system',
-        };
-        setLocalMessages((prev) => [...prev, aiMsg]);
-
-        return aiResponse;
+      } catch (error) {
+        console.error('Chat error:', error);
+        throw error;
       }
     },
     onSuccess: () => {
