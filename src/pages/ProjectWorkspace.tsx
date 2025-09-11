@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, useNavigate } from 'react-router-dom';
 import { Upload, FileText, Users, Download, Settings, RefreshCw, Music, Video, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,7 @@ import jsPDF from 'jspdf';
 
 export default function ProjectWorkspace() {
   const { id: projectId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -148,6 +149,30 @@ export default function ProjectWorkspace() {
     }
   };
 
+  const handleInvite = async () => {
+    try {
+      const link = `${window.location.origin}/project/${projectId}`;
+      await navigator.clipboard.writeText(link);
+      toast({ title: 'Link copied', description: 'Project link copied to clipboard.' });
+    } catch (e) {
+      toast({ title: 'Copy failed', description: 'Unable to copy link, opening instead.' });
+      window.open(`${window.location.origin}/project/${projectId}`, '_blank');
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!projectId) return;
+    if (!confirm('Delete this project and all related items? This cannot be undone.')) return;
+    try {
+      const { error } = await supabase.from('projects').delete().eq('id', projectId);
+      if (error) throw error;
+      toast({ title: 'Project deleted' });
+      navigate('/dashboard');
+    } catch (error: any) {
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -165,41 +190,38 @@ export default function ProjectWorkspace() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         <div className="border-b p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">{project.name}</h1>
-              <p className="text-muted-foreground">{project.description}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">{project.name}</h1>
+                <p className="text-muted-foreground">{project.description}</p>
+              </div>
+              <div className="flex gap-2">
+                <LanguageToggle variant="mini" />
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleInvite}
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  {t('invite')}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate('/settings')}
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  {t('settings')}
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={handleDeleteProject}
+                >
+                  Delete Project
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <LanguageToggle variant="mini" />
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  toast({
-                    title: t('coming_soon'),
-                    description: t('invite_coming'),
-                  });
-                }}
-              >
-                <Users className="h-4 w-4 mr-2" />
-                {t('invite')}
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  toast({
-                    title: t('coming_soon'), 
-                    description: t('settings_coming'),
-                  });
-                }}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                {t('settings')}
-              </Button>
-            </div>
-          </div>
         </div>
 
         <div className="flex-1 p-4">
