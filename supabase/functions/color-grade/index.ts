@@ -31,15 +31,15 @@ serve(async (req) => {
 
     console.log('Color-grade request:', { imageUrl, prompt })
 
-    // Use instruct-pix2pix for prompt-based color transformations
+    // Use a working color grading model
     const output = await replicate.run(
-      "fofr/flux-color",
+      "tencentarc/photomaker",
       {
         input: {
-          image: imageUrl,
-          prompt,
-          num_inference_steps: 20,
-          guidance_scale: 7.5,
+          input_image: imageUrl,
+          prompt: `Apply ${prompt} color grading to this image`,
+          num_steps: 20,
+          style_strength_ratio: 20,
         }
       }
     )

@@ -229,8 +229,7 @@ export default function ProjectWorkspace() {
             <TabsList className="mb-4">
               <TabsTrigger value="assets">Assets</TabsTrigger>
               <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
-              <TabsTrigger value="vfx">VFX Tools</TabsTrigger>
-              <TabsTrigger value="schedule">Schedule</TabsTrigger>
+              <TabsTrigger value="vfx">Mesh Tools</TabsTrigger>
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
@@ -382,56 +381,27 @@ export default function ProjectWorkspace() {
 
             <TabsContent value="vfx" className="flex-1">
               <div className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {/* Roto Plugin */}
+                <div className="grid gap-4 md:grid-cols-2">
+                  {/* Mesh Generator Plugin */}
                   <Card>
                     <CardHeader>
-                      <CardTitle>{t('roto')}</CardTitle>
-                      <CardDescription>AI-powered background removal</CardDescription>
+                      <CardTitle>Mesh Generator</CardTitle>
+                      <CardDescription>AI-powered 3D mesh generation</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <Button className="w-full" onClick={() => setSelectedTab('assets')}>
-                        {t('upload')} Video
-                      </Button>
-                    </CardContent>
-                  </Card>
-                  
-                  {/* Auto-Rig Plugin */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>{t('auto_rig')}</CardTitle>
-                      <CardDescription>Automatic character rigging</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button disabled className="w-full">
-                        {t('coming_soon')}
-                      </Button>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {t('auto_rig_coming')}
-                      </p>
-                    </CardContent>
-                  </Card>
-                  
-                  {/* Color Grade Plugin */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>{t('color_grade')}</CardTitle>
-                      <CardDescription>AI color correction</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button className="w-full" onClick={() => setSelectedTab('assets')}>
-                        {t('upload')} Video
+                        Generate Mesh
                       </Button>
                     </CardContent>
                   </Card>
                 </div>
                 
                 {/* Job Results */}
-                {jobs.filter(job => ['roto', 'color-grade', 'auto-rig'].includes(job.type)).length > 0 && (
+                {jobs.filter(job => ['mesh-generator'].includes(job.type)).length > 0 && (
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">VFX Results</h3>
+                    <h3 className="text-lg font-semibold">Generated Meshes</h3>
                     {jobs
-                      .filter(job => ['roto', 'color-grade', 'auto-rig'].includes(job.type))
+                      .filter(job => ['mesh-generator'].includes(job.type))
                       .map(job => (
                         <JobPreview key={job.id} job={job} onDownload={handleJobDownload} />
                       ))

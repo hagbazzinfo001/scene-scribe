@@ -62,19 +62,23 @@
     "description": "AI-powered color grading and style transfer"
   },
   {
-    "id": "auto-rig",
-    "name": "Auto Rig",
-    "defaultModel": null,
+    "id": "mesh-generator",
+    "name": "Mesh Generator",
+    "defaultModel": "meta-llama/Llama-2-70b-chat-hf",
     "paramsSchema": {
-      "targetRig": {
+      "meshType": {
         "type": "string", 
-        "default": "humanoid",
-        "options": ["humanoid", "quadruped", "creature"]
+        "default": "character",
+        "options": ["character", "prop", "environment"]
+      },
+      "complexity": {
+        "type": "string",
+        "default": "medium",
+        "options": ["low", "medium", "high"]
       }
     },
-    "enabled": false,
+    "enabled": true,
     "visible": true,
-    "comingSoonText": "Auto-Rig is coming soon — sign up for beta access.",
-    "description": "Automated character rigging for 3D models"
+    "description": "AI-powered 3D mesh generation and optimization"
   }
 ]
