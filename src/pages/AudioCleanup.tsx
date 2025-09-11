@@ -365,6 +365,9 @@ export default function AudioCleanup() {
                     <Download className="h-4 w-4 mr-2" />
                     Download Cleaned Audio
                   </Button>
+                  <Button onClick={() => { setProcessedAudioUrl(''); setAudioFile(null); setIsPlaying(false); }} variant="outline" size="sm">
+                    Reset
+                  </Button>
                 </div>
                 <audio
                   ref={audioRef}

@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 import { Film, Mail } from 'lucide-react';
+import { LanguageToggle } from '@/components/LanguageToggle';
 
 export default function Auth() {
   const { user, signUp, signIn, signInWithGoogle, loading } = useAuth();
@@ -60,6 +61,7 @@ export default function Auth() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
+        <div className="flex justify-end mb-2"><LanguageToggle variant="mini" /></div>
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <Film className="h-10 w-10 text-primary mr-2" />

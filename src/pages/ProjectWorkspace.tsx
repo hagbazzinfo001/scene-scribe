@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChatAssistant } from '@/components/ChatAssistant';
+
 import { UsageAnalytics } from '@/components/UsageAnalytics';
 import { ImportAssetDropzone } from '@/components/ImportAssetDropzone';
 import { BreakdownResults } from '@/components/BreakdownResults';
@@ -443,10 +443,6 @@ export default function ProjectWorkspace() {
         </div>
       </div>
 
-      {/* AI Assistant Sidebar */}
-      <div className="w-80 border-l bg-background">
-        <ChatAssistant projectId={projectId!} />
-      </div>
     </div>
   );
 }

@@ -13,6 +13,7 @@ export function LanguageToggle({ variant = 'full' }: LanguageToggleProps) {
   const toggleLanguage = () => {
     const newLang = i18n.language === 'en' ? 'de' : 'en';
     i18n.changeLanguage(newLang);
+    try { localStorage.setItem('language', newLang); } catch {}
   };
 
   if (variant === 'mini') {
