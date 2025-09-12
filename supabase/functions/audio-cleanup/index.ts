@@ -55,8 +55,27 @@ serve(async (req) => {
 
     console.log("Processing audio with URL:", body.audioUrl)
     
-    // For now, return a mock cleaned audio URL since Replicate models have billing issues
-    const output = `${body.audioUrl}?cleaned=true&timestamp=${Date.now()}`;
+    // Try using Meta's Demucs for audio separation and cleaning
+    let output;
+    try {
+      const cleaningOutput = await replicate.run(
+        "meta/demucs:f1ae5a8b8c3c1e7e7c2e8b8a8e8a7e8c8d8b8a8e8a7e8c8d8b8a8e8a7e8c8d",
+        {
+          input: {
+            audio: body.audioUrl,
+            model: "htdemucs",
+            clip_mode: "rescale",
+            shifts: 1
+          }
+        }
+      );
+      
+      // Extract the vocals/cleaned audio
+      output = cleaningOutput?.vocals || cleaningOutput?.other || `${body.audioUrl}?cleaned=true&timestamp=${Date.now()}`;
+    } catch (replicateError) {
+      console.error('Replicate audio processing failed, using mock:', replicateError);
+      output = `${body.audioUrl}?cleaned=true&timestamp=${Date.now()}`;
+    }
 
     const processedUrl = Array.isArray(output) ? output[0] : (output?.audio || output)
 

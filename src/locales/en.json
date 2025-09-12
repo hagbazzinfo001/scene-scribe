@@ -11,6 +11,7 @@
   "audio_cleanup": "Audio Cleanup",
   "color_grade": "Color Grade",
   "auto_rig": "Auto Rig",
+  "mesh_generator": "Mesh Generator",
   "settings": "Settings",
   "profile": "Profile",
   "projects": "Projects",
@@ -21,5 +22,17 @@
   "type_message": "Type your message...",
   "language": "Language",
   "english": "English",
-  "german": "German"
+  "german": "German",
+  "welcome_to": "Welcome to",
+  "nollyai_studio": "NollyAI Studio",
+  "create_account": "Create Account",
+  "sign_in": "Sign In",
+  "email": "Email",
+  "password": "Password",
+  "create_new_project": "Create New Project",
+  "project_name": "Project Name",
+  "description": "Description",
+  "create": "Create",
+  "vfx_animation": "VFX & Animation",
+  "asset_library": "Asset Library"
 }

@@ -33,7 +33,7 @@ serve(async (req) => {
 
     // Use CoTracker for motion tracking and segmentation
     const output = await replicate.run(
-      "facebookresearch/co-tracker:fc2b4fb71a9346b568e3fcce5ddade2e4e2e8068b7cf5e1a1ee89e03f8e86d38",
+      "facebookresearch/co-tracker:28b396d79d4b67f40ce3409b90ddfafccd3c30b59ac57b0c6f3fc11b8b21071e",
       {
         input: {
           video: videoUrl,

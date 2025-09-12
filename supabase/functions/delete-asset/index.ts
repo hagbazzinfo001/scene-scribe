@@ -1,15 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.0';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -17,64 +12,100 @@ serve(async (req) => {
   }
 
   try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Get user from auth header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'No authorization header' }),
+        { status: 401, headers: corsHeaders }
+      );
+    }
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: corsHeaders }
+      );
+    }
+
     const { asset_id } = await req.json();
-    
+
     if (!asset_id) {
-      return new Response(JSON.stringify({ error: 'Missing asset_id' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return new Response(
+        JSON.stringify({ error: 'asset_id is required' }),
+        { status: 400, headers: corsHeaders }
+      );
     }
 
-    // Call the database function to delete asset
-    const { data, error } = await supabase
-      .rpc('delete_user_asset', { asset_id });
+    // Get asset record to delete from storage
+    const { data: asset, error: fetchError } = await supabase
+      .from('user_assets')
+      .select('*')
+      .eq('id', asset_id)
+      .eq('user_id', user.id)
+      .single();
 
-    if (error) {
-      throw error;
+    if (fetchError || !asset) {
+      return new Response(
+        JSON.stringify({ error: 'Asset not found or access denied' }),
+        { status: 404, headers: corsHeaders }
+      );
     }
 
-    const result = data as { success: boolean; error?: string; storage_path?: string };
-    
-    if (!result.success) {
-      return new Response(JSON.stringify({ error: result.error }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    // Delete from database
+    const { error: deleteError } = await supabase
+      .from('user_assets')
+      .delete()
+      .eq('id', asset_id)
+      .eq('user_id', user.id);
+
+    if (deleteError) {
+      console.error('Database deletion error:', deleteError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to delete asset' }),
+        { status: 500, headers: corsHeaders }
+      );
     }
 
-    // If we have a storage path, try to delete from storage
-    if (result.storage_path) {
+    // Try to delete from storage (best effort)
+    if (asset.storage_path) {
       try {
-        // Extract bucket and path from storage_path
-        const pathParts = result.storage_path.split('/');
-        const bucket = pathParts[0] || 'uploads';
-        const filePath = pathParts.slice(1).join('/');
+        const bucketName = asset.file_type === 'video' ? 'video-uploads' :
+                          asset.file_type === 'audio' ? 'audio-uploads' :
+                          asset.file_type === 'image' ? 'uploads' :
+                          'uploads';
         
-        if (filePath) {
-          const { error: storageError } = await supabase.storage
-            .from(bucket)
-            .remove([filePath]);
-          
-          if (storageError) {
-            console.warn('Storage deletion failed:', storageError);
-          }
-        }
-      } catch (storageErr) {
-        console.warn('Storage cleanup error:', storageErr);
-        // Don't fail the request if storage cleanup fails
+        await supabase.storage
+          .from(bucketName)
+          .remove([asset.storage_path]);
+      } catch (storageError) {
+        console.error('Storage deletion error (non-fatal):', storageError);
+        // Continue - database deletion was successful
       }
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: 'Asset deleted successfully' 
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
-    console.error('Delete asset error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error('Error in delete-asset function:', error);
+    return new Response(
+      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      { status: 500, headers: corsHeaders }
+    );
   }
 });

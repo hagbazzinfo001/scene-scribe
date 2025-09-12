@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { FileUploadZone } from '@/components/FileUploadZone';
 import { MediaPreview } from '@/components/MediaPreview';
 import { ImportAssetDropzone } from '@/components/ImportAssetDropzone';
+import { AssetLibrary } from '@/components/AssetLibrary';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -37,10 +38,10 @@ export default function VFXAnimation() {
   const [sceneDescription, setSceneDescription] = useState('');
   const [trackingResults, setTrackingResults] = useState<any>(null);
   
-  // [AUTO_RIGGER] Animation States for Auto-Rigger
-  const [characterType, setCharacterType] = useState('');
-  const [rigComplexity, setRigComplexity] = useState('');
-  const [rigResults, setRigResults] = useState<any>(null);
+  // [MESH_GENERATOR] 3D Mesh Generation States
+  const [meshType, setMeshType] = useState('');
+  const [complexity, setComplexity] = useState('');
+  const [meshResults, setMeshResults] = useState<any>(null);
   
   // [COLOR_GRADE] Color Grading States
   const [colorGradeStyle, setColorGradeStyle] = useState('');
@@ -216,70 +217,69 @@ export default function VFXAnimation() {
     }
   };
 
-  // [AUTO_RIGGER] Auto-Rigging - Real downloadable rig files for Maya/Blender/Unreal
-  const handleAutoRig = async () => {
-    if (!characterType || !rigComplexity) {
-      toast.error('Please select character type and rig complexity');
+  // [MESH_GENERATOR] 3D Mesh Generation with Replicate
+  const handleMeshGeneration = async () => {
+    if (!meshType || !complexity) {
+      toast.error('Please select mesh type and complexity');
       return;
     }
 
     setIsProcessing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('vfx-auto-rigger', {
+      const { data, error } = await supabase.functions.invoke('mesh-generator', {
         body: {
           project_id: projectId,
-          character_file_path: selectedFiles.model || null,
-          rig_type: `${characterType}_${rigComplexity}`,
-          characterType,
-          rigComplexity
+          mesh_type: meshType,
+          complexity: complexity
         }
       });
 
       if (error) throw error;
       
-      setRigResults(data);
+      setMeshResults(data);
       
-      // Save rig files to project assets for retrieval
-      if (data.output_data?.rig_file_url) {
+      // Save mesh files to project assets for retrieval
+      if (data.download_url) {
         await supabase.from('user_assets').insert({
           user_id: user?.id,
           project_id: projectId || null,
-          filename: `auto_rig_${characterType}_${rigComplexity}_${Date.now()}.zip`,
-          file_url: data.output_data.rig_file_url,
+          filename: `mesh_${meshType}_${complexity}_${Date.now()}.obj`,
+          file_url: data.download_url,
           file_type: 'model',
-          storage_path: `rigs/${characterType}/${Date.now()}`,
+          storage_path: `meshes/${meshType}/${Date.now()}`,
           metadata: { 
-            characterType,
-            rigComplexity,
-            boneCount: data.output_data?.bone_count || 0,
-            controlCount: data.output_data?.control_count || 0,
-            compatibility: data.output_data?.compatibility || []
+            meshType,
+            complexity,
+            vertices: data.mesh_data?.vertices || 0,
+            faces: data.mesh_data?.faces || 0,
+            materials: data.mesh_data?.materials || [],
+            downloadFormats: data.mesh_data?.download_formats || []
           },
           processing_status: 'completed'
         });
       }
       
-      toast.success('Auto-rigging completed!');
+      toast.success('Mesh generation completed!');
       
       // Create notification for completion
       if (user) {
         await supabase.from('notifications').insert({
           user_id: user.id,
-          title: 'Auto-Rigging Complete',
-          message: `${characterType} rig with ${rigComplexity} complexity has been generated successfully.`,
+          title: 'Mesh Generation Complete',
+          message: `${meshType} mesh with ${complexity} complexity has been generated successfully.`,
           type: 'success'
         });
       }
     } catch (error: any) {
-      console.error('Auto-rigging error:', error);
-      toast.error(`Failed to generate rig: ${error.message}`);
+      console.error('Mesh generation error:', error);
+      toast.error(`Failed to generate mesh: ${error.message}`);
       
       // Create notification for error
       if (user) {
         await supabase.from('notifications').insert({
           user_id: user.id,
-          title: 'Auto-Rigging Failed',
-          message: `Rig generation failed: ${error.message}`,
+          title: 'Mesh Generation Failed',
+          message: `Mesh generation failed: ${error.message}`,
           type: 'error'
         });
       }
@@ -395,7 +395,7 @@ export default function VFXAnimation() {
       <Tabs defaultValue="roto" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="roto">Roto Scoping</TabsTrigger>
-          <TabsTrigger value="rigging">Auto-Rigger</TabsTrigger>
+          <TabsTrigger value="mesh">Mesh Generator</TabsTrigger>
           <TabsTrigger value="grading">Color Process</TabsTrigger>
           <TabsTrigger value="assets">Asset Library</TabsTrigger>
         </TabsList>
@@ -489,8 +489,8 @@ export default function VFXAnimation() {
           </div>
         </TabsContent>
 
-        {/* Auto-Rigger Tab */}
-        <TabsContent value="rigging" className="space-y-6">
+        {/* Mesh Generator Tab */}
+        <TabsContent value="mesh" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
@@ -501,8 +501,8 @@ export default function VFXAnimation() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="character-type">Character Type</Label>
-                  <Select value={characterType} onValueChange={setCharacterType}>
+                  <Label htmlFor="mesh-type">Mesh Type</Label>
+                  <Select value={meshType} onValueChange={setMeshType}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select character type" />
                     </SelectTrigger>
@@ -515,8 +515,8 @@ export default function VFXAnimation() {
                 </div>
 
                 <div>
-                  <Label htmlFor="rig-complexity">Rig Complexity</Label>
-                  <Select value={rigComplexity} onValueChange={setRigComplexity}>
+                  <Label htmlFor="complexity">Complexity</Label>
+                  <Select value={complexity} onValueChange={setComplexity}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select complexity" />
                     </SelectTrigger>
@@ -540,8 +540,8 @@ export default function VFXAnimation() {
                 </div>
 
                 <Button 
-                  onClick={handleAutoRig} 
-                  disabled={isProcessing || !characterType || !rigComplexity}
+                  onClick={handleMeshGeneration} 
+                  disabled={isProcessing || !meshType || !complexity}
                   className="w-full"
                 >
                   {isProcessing ? 'Generating Rig...' : 'Generate Auto-Rig'}
@@ -554,15 +554,15 @@ export default function VFXAnimation() {
                 <CardTitle>Rig Plan & Downloads</CardTitle>
               </CardHeader>
               <CardContent>
-                {rigResults ? (
+                {meshResults ? (
                   <div className="space-y-4">
                     <div className="p-4 bg-muted rounded-lg">
                       <h4 className="font-medium mb-2">Rig Generated Successfully</h4>
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>Character: {rigResults.metadata?.characterType || rigResults.output_data?.character_type}</div>
-                        <div>Complexity: {rigResults.metadata?.rigComplexity || rigResults.output_data?.rig_complexity}</div>
-                        <div>Bones: {rigResults.rigPlan?.bones?.length || rigResults.output_data?.bone_count || 0}</div>
-                        <div>Controls: {rigResults.rigPlan?.controllers?.length || rigResults.output_data?.control_count || 0}</div>
+                        <div>Type: {meshResults.mesh_data?.type || meshType}</div>
+                        <div>Complexity: {meshResults.mesh_data?.complexity || complexity}</div>
+                        <div>Vertices: {meshResults.mesh_data?.vertices || 0}</div>
+                        <div>Faces: {meshResults.mesh_data?.faces || 0}</div>
                       </div>
                     </div>
                     
@@ -570,20 +570,20 @@ export default function VFXAnimation() {
                       <Label>Download Rig Files</Label>
                       
                       {/* Real downloadable rig file from job output */}
-                      {rigResults.output_data?.rig_file_url && (
+                      {meshResults.download_url && (
                         <Button variant="outline" className="w-full" asChild>
-                          <a href={rigResults.output_data.rig_file_url} target="_blank" rel="noopener noreferrer">
+                          <a href={meshResults.download_url} target="_blank" rel="noopener noreferrer">
                             <Download className="h-4 w-4 mr-2" />
-                            Download Complete Rig Package (.zip)
+                            Download Mesh (.obj)
                           </a>
                         </Button>
                       )}
                       
                       {/* Legacy format support */}
                       <div className="grid grid-cols-2 gap-2">
-                        {rigResults.rigFiles?.blender && (
+                        {meshResults.mesh_data?.download_formats?.includes('blend') && (
                           <Button variant="outline" size="sm" asChild>
-                            <a href={rigResults.rigFiles.blender} target="_blank" rel="noopener noreferrer">
+                            <a href={`${meshResults.download_url}?format=blend`} target="_blank" rel="noopener noreferrer">
                               <Download className="h-4 w-4 mr-2" />
                               Blender
                             </a>

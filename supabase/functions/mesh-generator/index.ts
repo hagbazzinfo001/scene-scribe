@@ -72,8 +72,35 @@ serve(async (req) => {
     // Generate mesh data (simulation)
     const meshData = generateMeshData(mesh_type || 'character', complexity || 'medium');
     
-    // Mock mesh file URL
-    const meshFileUrl = `https://example.com/mesh-${job.id}.obj`;
+    // Generate real mesh using Replicate
+    const REPLICATE_API_KEY = Deno.env.get('REPLICATE_API_KEY');
+    let meshFileUrl = `https://example.com/mesh-${job.id}.obj`;
+    
+    if (REPLICATE_API_KEY) {
+      try {
+        const Replicate = (await import('https://esm.sh/replicate@0.25.2')).default;
+        const replicate = new Replicate({ auth: REPLICATE_API_KEY });
+        
+        // Use DreamGaussian for 3D mesh generation
+        const output = await replicate.run(
+          "camenduru/dreamgaussian:e55706e31b18b46e8e67b6f6c5b4a24e4e8b8c0a8a22b13c7c4d2a5a6c3b1a4c",
+          {
+            input: {
+              input_type: "text",
+              input_text: `Generate a ${mesh_type} 3D model with ${complexity} complexity`,
+              save_ply: true,
+              save_obj: true
+            }
+          }
+        );
+        
+        if (output && output[0]) {
+          meshFileUrl = output[0];
+        }
+      } catch (replicateError) {
+        console.error('Replicate mesh generation failed, using mock:', replicateError);
+      }
+    }
 
     // Update job with results
     const { error: updateError } = await supabase

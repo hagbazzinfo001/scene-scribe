@@ -2,9 +2,12 @@ import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Film, Zap, Users, FileText, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useTranslation } from 'react-i18next';
+import { LanguageToggle } from '@/components/LanguageToggle';
 
 const Index = () => {
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
 
   if (loading) {
     return (
@@ -20,13 +23,18 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Header with Language Toggle */}
+      <div className="container mx-auto px-4 py-4 flex justify-end">
+        <LanguageToggle variant="mini" />
+      </div>
+      
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="text-center max-w-4xl mx-auto">
           <div className="flex items-center justify-center mb-6">
             <Film className="h-12 w-12 text-primary mr-3" />
             <h1 className="text-4xl md:text-6xl font-bold text-foreground">
-              Nollywood AI Assistant
+              {t('welcome_to')} {t('nollyai_studio')}
             </h1>
           </div>
           
@@ -36,7 +44,7 @@ const Index = () => {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
             <Button size="lg" className="text-lg px-8 py-6" asChild>
-              <a href="/auth">Get Started Free</a>
+              <a href="/auth">{t('create_account')}</a>
             </Button>
             <Button size="lg" variant="outline" className="text-lg px-8 py-6">
               Watch Demo

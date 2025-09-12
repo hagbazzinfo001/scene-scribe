@@ -31,15 +31,16 @@ serve(async (req) => {
 
     console.log('Color-grade request:', { imageUrl, prompt })
 
-    // Use a working color grading model
+    // Use a working color grading model  
     const output = await replicate.run(
-      "tencentarc/photomaker",
+      "stability-ai/stable-diffusion:ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4",
       {
         input: {
-          input_image: imageUrl,
-          prompt: `Apply ${prompt} color grading to this image`,
-          num_steps: 20,
-          style_strength_ratio: 20,
+          image: imageUrl,
+          prompt: `Apply ${prompt} color grading style, professional color correction, cinematic look`,
+          strength: 0.6,
+          guidance_scale: 7.5,
+          num_inference_steps: 30
         }
       }
     )
