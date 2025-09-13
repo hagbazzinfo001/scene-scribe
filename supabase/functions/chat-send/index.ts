@@ -34,16 +34,16 @@ async function trackUsage(metrics: any, projectId?: string) {
 }
 
 async function callAI(message: string, projectContext?: string) {
-  const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+  const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
   
-  if (!openAIApiKey) {
+  if (!anthropicApiKey) {
     return {
-      response: "I'm ready to help with script breakdowns, schedules, props, and VFX planning. Add your OpenAI API key in Supabase Edge Function secrets (OPENAI_API_KEY) to enable smart answers.",
+      response: "I'm ready to help with script breakdowns, schedules, props, and VFX planning for Nollywood productions! To enable AI responses, add your Anthropic API key in Supabase Edge Function secrets (ANTHROPIC_API_KEY).",
       metrics: { success: false, errorType: 'no_api_key' }
     };
   }
 
-  let context = `You are an AI assistant specialized in Nollywood film pre-production. You help with script breakdown, scheduling, and production planning.`;
+  let context = `You are an AI assistant specialized in Nollywood film pre-production. You help with script breakdown, scheduling, production planning, and VFX workflow optimization. Be helpful, concise, and focused on practical filmmaking advice.`;
   
   if (projectContext && isValidUUID(projectContext)) {
     try {
@@ -54,7 +54,7 @@ async function callAI(message: string, projectContext?: string) {
         .single();
       
       if (project) {
-        context += `\n\nProject: ${project.name}\nDescription: ${project.description || 'No description'}`;
+        context += `\n\nProject Context: ${project.name}\nDescription: ${project.description || 'No description'}`;
         if (project.scripts?.length) {
           context += `\nScripts: ${project.scripts.map((s: any) => s.title).join(', ')}`;
         }
@@ -67,19 +67,20 @@ async function callAI(message: string, projectContext?: string) {
   const startTime = Date.now();
   
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'x-api-key': anthropicApiKey,
         'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'gpt-5-2025-08-07',
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 1000,
+        system: context,
         messages: [
-          { role: 'system', content: context },
           { role: 'user', content: message }
-        ],
-        max_completion_tokens: 1000,
+        ]
       }),
     });
 
@@ -87,17 +88,17 @@ async function callAI(message: string, projectContext?: string) {
     const responseTime = Date.now() - startTime;
     
     if (!response.ok) {
-      throw new Error(data.error?.message || 'OpenAI API error');
+      throw new Error(data.error?.message || 'Anthropic API error');
     }
 
     return {
-      response: data.choices[0].message.content,
+      response: data.content[0].text,
       metrics: {
         success: true,
-        tokensUsed: data.usage?.total_tokens || 0,
+        tokensUsed: data.usage?.input_tokens + data.usage?.output_tokens || 0,
         responseTimeMs: responseTime,
-        provider: 'openai',
-        model: 'gpt-5-2025-08-07'
+        provider: 'anthropic',
+        model: 'claude-3-haiku-20240307'
       }
     };
   } catch (error) {
@@ -108,8 +109,8 @@ async function callAI(message: string, projectContext?: string) {
         success: false,
         errorType: error.message,
         responseTimeMs: responseTime,
-        provider: 'openai',
-        model: 'gpt-5-2025-08-07'
+        provider: 'anthropic',
+        model: 'claude-3-haiku-20240307'
       }
     };
   }

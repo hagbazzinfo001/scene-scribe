@@ -61,7 +61,13 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify(trackingData), {
+    return new Response(JSON.stringify({
+      success: true,
+      ...trackingData,
+      download_url: trackingData.videoUrl,
+      roto_video_url: trackingData.videoUrl,
+      tracking_data: trackingData
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })

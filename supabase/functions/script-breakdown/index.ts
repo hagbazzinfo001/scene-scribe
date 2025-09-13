@@ -77,16 +77,16 @@ serve(async (req) => {
       );
     }
 
-    // Process with OpenAI
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
+    // Process with Anthropic Claude
+    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!anthropicApiKey) {
       await supabase.from('jobs').update({ 
         status: 'error', 
-        error: 'OpenAI API key not configured' 
+        error: 'Anthropic API key not configured' 
       }).eq('id', job.id);
       
       return new Response(
-        JSON.stringify({ error: 'OpenAI API key not configured' }),
+        JSON.stringify({ error: 'Anthropic API key not configured' }),
         { status: 500, headers: corsHeaders }
       );
     }
@@ -138,36 +138,33 @@ Script content:
 ${script_content}`;
 
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${openAIApiKey}`,
+          'x-api-key': anthropicApiKey,
           'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 3000,
+          system: 'You are a professional Nollywood script breakdown assistant. Analyze the screenplay and return ONLY valid JSON with the exact structure specified. Focus on practical production elements.',
           messages: [
-            {
-              role: 'system',
-              content: 'You are a professional script breakdown assistant. Return only valid JSON.'
-            },
             {
               role: 'user',
               content: prompt
             }
-          ],
-          max_tokens: 3000,
-          temperature: 0.1,
+          ]
         }),
       });
 
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error?.message || 'OpenAI API error');
+        throw new Error(data.error?.message || 'Anthropic API error');
       }
 
-      const content = data.choices[0].message.content;
+      const content = data.content[0].text;
       const jsonText = extractJSON(content);
       const parsed = JSON.parse(jsonText);
 

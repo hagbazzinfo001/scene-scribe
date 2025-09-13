@@ -47,7 +47,14 @@ serve(async (req) => {
 
     console.log('Color-grade output:', output)
 
-    return new Response(JSON.stringify({ output }), {
+    const processedUrl = Array.isArray(output) ? output[0] : output;
+
+    return new Response(JSON.stringify({ 
+      success: true,
+      output: processedUrl,
+      download_url: processedUrl,
+      processed_image_url: processedUrl
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })

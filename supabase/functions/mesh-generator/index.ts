@@ -37,7 +37,7 @@ serve(async (req) => {
       );
     }
 
-    const { project_id, mesh_type, complexity } = await req.json();
+    const { project_id, mesh_type, complexity, description = '' } = await req.json();
 
     if (!project_id) {
       return new Response(
@@ -56,7 +56,7 @@ serve(async (req) => {
         project_id,
         type: 'mesh-generator',
         status: 'running',
-        input_data: { mesh_type: mesh_type || 'character', complexity: complexity || 'medium' }
+        input_data: { mesh_type: mesh_type || 'character', complexity: complexity || 'medium', description }
       })
       .select()
       .single();
@@ -87,7 +87,7 @@ serve(async (req) => {
           {
             input: {
               input_type: "text",
-              input_text: `Generate a ${mesh_type} 3D model with ${complexity} complexity`,
+              input_text: description || `Generate a ${mesh_type} 3D model with ${complexity} complexity level`,
               save_ply: true,
               save_obj: true
             }

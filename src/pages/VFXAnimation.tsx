@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Sparkles, Camera, Wand2, Palette, Play, Download, FileText, Upload } from 'lucide-react';
+import { Sparkles, Camera, Wand2, Palette, Play, Download, FileText, Upload, Box, Loader2, Volume2, FilmIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -41,6 +41,7 @@ export default function VFXAnimation() {
   // [MESH_GENERATOR] 3D Mesh Generation States
   const [meshType, setMeshType] = useState('');
   const [complexity, setComplexity] = useState('');
+  const [meshDescription, setMeshDescription] = useState('');
   const [meshResults, setMeshResults] = useState<any>(null);
   
   // [COLOR_GRADE] Color Grading States
@@ -495,92 +496,118 @@ export default function VFXAnimation() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Wand2 className="h-5 w-5" />
-                  Character Rigging Setup
+                  <Box className="h-5 w-5" />
+                  3D Mesh Generator
                 </CardTitle>
+                <p className="text-sm text-muted-foreground">Generate 3D models and props using AI</p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <Label htmlFor="mesh-type">Mesh Type</Label>
                   <Select value={meshType} onValueChange={setMeshType}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select character type" />
+                      <SelectValue placeholder="Select mesh type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="humanoid">Humanoid</SelectItem>
-                      <SelectItem value="creature">Creature/Animal</SelectItem>
+                      <SelectItem value="character">Character</SelectItem>
+                      <SelectItem value="prop">Prop/Object</SelectItem>
+                      <SelectItem value="environment">Environment</SelectItem>
                       <SelectItem value="vehicle">Vehicle</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
-                  <Label htmlFor="complexity">Complexity</Label>
+                  <Label htmlFor="complexity">Detail Level</Label>
                   <Select value={complexity} onValueChange={setComplexity}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select complexity" />
+                      <SelectValue placeholder="Select detail level" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="simple">Simple (Basic bones)</SelectItem>
-                      <SelectItem value="standard">Standard (Full body)</SelectItem>
-                      <SelectItem value="advanced">Advanced (Facial + Fingers)</SelectItem>
+                      <SelectItem value="low">Low (1K vertices)</SelectItem>
+                      <SelectItem value="medium">Medium (5K vertices)</SelectItem>
+                      <SelectItem value="high">High (15K vertices)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
-                  <Label>Upload 3D Model (Optional)</Label>
+                  <Label>Mesh Description</Label>
+                  <textarea 
+                    className="w-full p-3 border rounded-md resize-none"
+                    rows={3}
+                    placeholder="Describe the 3D model you want to generate (e.g., 'A medieval knight sword with ornate handle')"
+                    value={meshDescription}
+                    onChange={(e) => setMeshDescription(e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <Label>Reference Image (Optional)</Label>
                   <FileUploadZone
                     bucket="vfx-assets"
-                    acceptedFileTypes={['*']}
-                    maxSizeMB={100}
-                    onFileUploaded={(url, file) => handleFileUploaded(url, file, 'model')}
+                    acceptedFileTypes={['jpg', 'jpeg', 'png', 'webp']}
+                    maxSizeMB={10}
+                    onFileUploaded={(url, file) => handleFileUploaded(url, file, 'image')}
                     className="mt-1"
                   />
                 </div>
 
                 <Button 
                   onClick={handleMeshGeneration} 
-                  disabled={isProcessing || !meshType || !complexity}
+                  disabled={isProcessing || !meshType || !complexity || !meshDescription}
                   className="w-full"
                 >
-                  {isProcessing ? 'Generating Rig...' : 'Generate Auto-Rig'}
+                  {isProcessing ? 'Generating 3D Mesh...' : 'Generate 3D Mesh'}
                 </Button>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Rig Plan & Downloads</CardTitle>
+                <CardTitle>Generated Mesh & Downloads</CardTitle>
               </CardHeader>
               <CardContent>
                 {meshResults ? (
                   <div className="space-y-4">
                     <div className="p-4 bg-muted rounded-lg">
-                      <h4 className="font-medium mb-2">Rig Generated Successfully</h4>
+                      <h4 className="font-medium mb-2">3D Mesh Generated Successfully</h4>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>Type: {meshResults.mesh_data?.type || meshType}</div>
-                        <div>Complexity: {meshResults.mesh_data?.complexity || complexity}</div>
-                        <div>Vertices: {meshResults.mesh_data?.vertices || 0}</div>
-                        <div>Faces: {meshResults.mesh_data?.faces || 0}</div>
+                        <div>Detail: {meshResults.mesh_data?.complexity || complexity}</div>
+                        <div>Vertices: {meshResults.mesh_data?.vertices?.toLocaleString() || 0}</div>
+                        <div>Faces: {meshResults.mesh_data?.faces?.toLocaleString() || 0}</div>
                       </div>
+                      {meshResults.mesh_data?.materials && (
+                        <div className="mt-2">
+                          <div className="text-xs text-muted-foreground">Materials: {meshResults.mesh_data.materials.join(', ')}</div>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="space-y-2">
-                      <Label>Download Rig Files</Label>
+                      <Label>Download 3D Model Files</Label>
                       
-                      {/* Real downloadable rig file from job output */}
+                      {/* Primary download */}
                       {meshResults.download_url && (
                         <Button variant="outline" className="w-full" asChild>
                           <a href={meshResults.download_url} target="_blank" rel="noopener noreferrer">
                             <Download className="h-4 w-4 mr-2" />
-                            Download Mesh (.obj)
+                            Download 3D Model (.obj)
                           </a>
                         </Button>
                       )}
                       
-                      {/* Legacy format support */}
+                      {/* Format-specific downloads */}
                       <div className="grid grid-cols-2 gap-2">
+                        {meshResults.mesh_data?.download_formats?.includes('fbx') && (
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={`${meshResults.download_url}?format=fbx`} target="_blank" rel="noopener noreferrer">
+                              <Download className="h-4 w-4 mr-2" />
+                              FBX
+                            </a>
+                          </Button>
+                        )}
                         {meshResults.mesh_data?.download_formats?.includes('blend') && (
                           <Button variant="outline" size="sm" asChild>
                             <a href={`${meshResults.download_url}?format=blend`} target="_blank" rel="noopener noreferrer">
@@ -589,45 +616,32 @@ export default function VFXAnimation() {
                             </a>
                           </Button>
                         )}
-                        {meshResults.download_formats?.includes('maya') && (
+                        {meshResults.mesh_data?.download_formats?.includes('maya') && (
                           <Button variant="outline" size="sm" asChild>
-                            <a href={meshResults.download_url} target="_blank" rel="noopener noreferrer">
+                            <a href={`${meshResults.download_url}?format=maya`} target="_blank" rel="noopener noreferrer">
                               <Download className="h-4 w-4 mr-2" />
-                              Maya (.ma)
+                              Maya
                             </a>
                           </Button>
                         )}
-                        {meshResults.download_formats?.includes('fbx') && (
+                        {meshResults.mesh_data?.download_formats?.includes('unreal') && (
                           <Button variant="outline" size="sm" asChild>
-                            <a href={meshResults.download_url} target="_blank" rel="noopener noreferrer">
+                            <a href={`${meshResults.download_url}?format=unreal`} target="_blank" rel="noopener noreferrer">
                               <Download className="h-4 w-4 mr-2" />
-                              FBX
-                            </a>
-                          </Button>
-                        )}
-                        {meshResults.download_formats?.includes('blend') && (
-                          <Button variant="outline" size="sm" asChild>
-                            <a href={meshResults.download_url} target="_blank" rel="noopener noreferrer">
-                              <Download className="h-4 w-4 mr-2" />
-                              Blender
+                              Unreal
                             </a>
                           </Button>
                         )}
                       </div>
-                      {meshResults.mesh_data && (
-                        <Button variant="outline" size="sm" asChild className="w-full">
-                          <a href={meshResults.download_url} target="_blank" rel="noopener noreferrer">
-                            <Download className="h-4 w-4 mr-2" />
-                            Download OBJ
-                          </a>
-                        </Button>
-                      )}
                     </div>
                   </div>
                 ) : (
-                  <p className="text-muted-foreground text-center py-8">
-                    Select character type and complexity to generate an auto-rig
-                  </p>
+                  <div className="text-center py-8">
+                    <Box className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-muted-foreground">
+                      Configure mesh type and description to generate a 3D model
+                    </p>
+                  </div>
                 )}
               </CardContent>
             </Card>

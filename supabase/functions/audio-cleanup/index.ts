@@ -94,7 +94,13 @@ serve(async (req) => {
     }
 
     console.log("Audio processing response:", output)
-    return new Response(JSON.stringify({ output: processedUrl }), {
+    return new Response(JSON.stringify({ 
+      success: true,
+      output: processedUrl,
+      processedAudioUrl: processedUrl,
+      downloadUrl: processedUrl,
+      status: 'completed'
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
