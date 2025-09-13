@@ -23,6 +23,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { toast } from 'sonner';
 import { useParams } from 'react-router-dom';
+import { freeAIService } from '@/services/freeAIService';
+import { openSourceVFX } from '@/services/openSourceVFX';
 
 export default function VFXAnimation() {
   const { projectId } = useParams();

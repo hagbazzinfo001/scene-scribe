@@ -53,17 +53,32 @@ export function AssetLibrary({ projectId }: AssetLibraryProps) {
 
   const deleteMutation = useMutation({
     mutationFn: async (assetId: string) => {
-      const { data, error } = await supabase.functions.invoke('delete-asset', {
-        body: { asset_id: assetId }
-      });
+      // Delete from database directly
+      const { error } = await supabase
+        .from('user_assets')
+        .delete()
+        .eq('id', assetId)
+        .eq('user_id', user?.id);
+      
       if (error) throw error;
-      return data;
+      
+      // Also try to clean up storage (non-blocking)
+      try {
+        await supabase.functions.invoke('delete-asset', {
+          body: { asset_id: assetId }
+        });
+      } catch (storageError) {
+        console.warn('Storage cleanup failed:', storageError);
+      }
+      
+      return { success: true };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-assets'] });
+      queryClient.invalidateQueries({ queryKey: ['user-assets', projectId] });
       toast.success('Asset deleted successfully');
     },
     onError: (error: any) => {
+      console.error('Delete error:', error);
       toast.error(`Failed to delete asset: ${error.message}`);
     }
   });
