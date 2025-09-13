@@ -589,36 +589,36 @@ export default function VFXAnimation() {
                             </a>
                           </Button>
                         )}
-                        {rigResults.rigFiles?.maya && (
+                        {meshResults.download_formats?.includes('maya') && (
                           <Button variant="outline" size="sm" asChild>
-                            <a href={rigResults.rigFiles.maya} target="_blank" rel="noopener noreferrer">
+                            <a href={meshResults.download_url} target="_blank" rel="noopener noreferrer">
                               <Download className="h-4 w-4 mr-2" />
-                              Maya
+                              Maya (.ma)
                             </a>
                           </Button>
                         )}
-                        {rigResults.rigFiles?.unreal && (
+                        {meshResults.download_formats?.includes('fbx') && (
                           <Button variant="outline" size="sm" asChild>
-                            <a href={rigResults.rigFiles.unreal} target="_blank" rel="noopener noreferrer">
+                            <a href={meshResults.download_url} target="_blank" rel="noopener noreferrer">
                               <Download className="h-4 w-4 mr-2" />
-                              Unreal
+                              FBX
                             </a>
                           </Button>
                         )}
-                        {rigResults.rigFiles?.unity && (
+                        {meshResults.download_formats?.includes('blend') && (
                           <Button variant="outline" size="sm" asChild>
-                            <a href={rigResults.rigFiles.unity} target="_blank" rel="noopener noreferrer">
+                            <a href={meshResults.download_url} target="_blank" rel="noopener noreferrer">
                               <Download className="h-4 w-4 mr-2" />
-                              Unity
+                              Blender
                             </a>
                           </Button>
                         )}
                       </div>
-                      {rigResults.rigFiles?.documentation && (
+                      {meshResults.mesh_data && (
                         <Button variant="outline" size="sm" asChild className="w-full">
-                          <a href={rigResults.rigFiles.documentation} target="_blank" rel="noopener noreferrer">
+                          <a href={meshResults.download_url} target="_blank" rel="noopener noreferrer">
                             <Download className="h-4 w-4 mr-2" />
-                            Download Documentation
+                            Download OBJ
                           </a>
                         </Button>
                       )}
