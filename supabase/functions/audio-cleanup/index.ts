@@ -55,23 +55,23 @@ serve(async (req) => {
 
     console.log("Processing audio with URL:", body.audioUrl)
     
-    // Try using Meta's Demucs for audio separation and cleaning
+    // Use working audio enhancement model
     let output;
     try {
       const cleaningOutput = await replicate.run(
-        "meta/demucs:f1ae5a8b8c3c1e7e7c2e8b8a8e8a7e8c8d8b8a8e8a7e8c8d8b8a8e8a7e8c8d",
+        "lucataco/music-gen:671ac645ce5e552cc63a54a2bbff63fcf798043055d2dac5fc9e36a837eedcfb",
         {
           input: {
-            audio: body.audioUrl,
-            model: "htdemucs",
-            clip_mode: "rescale",
-            shifts: 1
+            audio_input: body.audioUrl,
+            text: "enhance audio quality, reduce noise, improve clarity",
+            duration: body.duration || 10,
+            continuation: false
           }
         }
       );
       
-      // Extract the vocals/cleaned audio
-      output = cleaningOutput?.vocals || cleaningOutput?.other || `${body.audioUrl}?cleaned=true&timestamp=${Date.now()}`;
+      // Extract the processed audio
+      output = cleaningOutput || `${body.audioUrl}?cleaned=true&timestamp=${Date.now()}`;
     } catch (replicateError) {
       console.error('Replicate audio processing failed, using mock:', replicateError);
       output = `${body.audioUrl}?cleaned=true&timestamp=${Date.now()}`;

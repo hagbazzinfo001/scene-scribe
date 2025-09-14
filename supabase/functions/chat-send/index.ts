@@ -145,20 +145,22 @@ serve(async (req) => {
     const { projectId, userMessage } = await req.json();
     const projectContext = isValidUUID(projectId) ? projectId : null;
 
-    // 1) Persist user message - best-effort (do not fail entire flow)
+    // 1) Persist user message - best-effort (do not fail entire flow) - only if projectContext is valid
     let userMsgRow;
-    try {
-      const { data, error } = await supabase.from("chat_messages").insert({
-        project_id: projectContext,
-        user_id: user.id,
-        message: userMessage,
-        is_ai_response: false
-      }).select().single();
-      if (error) throw error;
-      userMsgRow = data;
-    } catch (err) {
-      console.error("chat: failed to persist user message (non-fatal)", err);
-      // continue — we still call the AI
+    if (projectContext) {
+      try {
+        const { data, error } = await supabase.from("chat_messages").insert({
+          project_id: projectContext,
+          user_id: user.id,
+          message: userMessage,
+          is_ai_response: false
+        }).select().single();
+        if (error) throw error;
+        userMsgRow = data;
+      } catch (err) {
+        console.error("chat: failed to persist user message (non-fatal)", err);
+        // continue — we still call the AI
+      }
     }
 
     // 2) Call AI
@@ -184,16 +186,18 @@ serve(async (req) => {
       );
     }
 
-    // 3) Persist AI response (best-effort)
-    try {
-      await supabase.from("chat_messages").insert({
-        project_id: projectContext,
-        user_id: user.id,
-        message: aiResult.response,
-        is_ai_response: true
-      });
-    } catch (err) {
-      console.error("chat: failed to persist ai response (non-fatal)", err);
+    // 3) Persist AI response (best-effort) - only if projectContext is valid
+    if (projectContext) {
+      try {
+        await supabase.from("chat_messages").insert({
+          project_id: projectContext,
+          user_id: user.id,
+          message: aiResult.response,
+          is_ai_response: true
+        });
+      } catch (err) {
+        console.error("chat: failed to persist ai response (non-fatal)", err);
+      }
     }
 
     // 4) Track usage (non-blocking)

@@ -31,16 +31,13 @@ serve(async (req) => {
 
     console.log('Roto-tracker request:', { videoUrl, sceneDescription, trackingType })
 
-    // Use CoTracker for motion tracking and segmentation
+    // Use working video tracking model
     const output = await replicate.run(
-      "facebookresearch/co-tracker:28b396d79d4b67f40ce3409b90ddfafccd3c30b59ac57b0c6f3fc11b8b21071e",
+      "chenxwh/rvm:99d93b2b1d35e1e9d7f943afcb7b70ba1a2ebdae8b8f3df01b3fe0d4b5c7b0c6",
       {
         input: {
           video: videoUrl,
-          grid_size: 10,
-          grid_query_frame: 0,
-          backward_tracking: true,
-          forward_tracking: true
+          bg_type: "green"
         }
       }
     )

@@ -62,9 +62,9 @@ export function ChatAssistant({ projectId }: ChatAssistantProps) {
           throw new Error('Authentication required');
         }
 
-        // Call the robust chat-send endpoint
+        // Call LLaMA chat instead of old chat-send
         const { data: aiResponse, error: aiError } = await supabase.functions
-          .invoke('chat-send', {
+          .invoke('llama-chat', {
             body: { 
               projectId: inProjectContext ? projectId : null, 
               userMessage: userMessage 

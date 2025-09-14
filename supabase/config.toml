@@ -34,3 +34,9 @@ verify_jwt = false
 
 [functions.color-grade]
 verify_jwt = false
+
+[functions.llama-chat]
+verify_jwt = true
+
+[functions.nllb-translate]
+verify_jwt = true

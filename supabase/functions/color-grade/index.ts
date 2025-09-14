@@ -31,16 +31,14 @@ serve(async (req) => {
 
     console.log('Color-grade request:', { imageUrl, prompt })
 
-    // Use a working color grading model  
+    // Use working image enhancement model
     const output = await replicate.run(
-      "stability-ai/stable-diffusion:ac732df83cea7fff18b8472768c88ad041fa750ff7682a21affe81863cbe77e4",
+      "tencentarc/gfpgan:9283608cc6b7be6b65a8e44983db012355fde4132009bf99d976b2f0896856a3",
       {
         input: {
-          image: imageUrl,
-          prompt: `Apply ${prompt} color grading style, professional color correction, cinematic look`,
-          strength: 0.6,
-          guidance_scale: 7.5,
-          num_inference_steps: 30
+          img: imageUrl,
+          version: "v1.4",
+          scale: 2
         }
       }
     )

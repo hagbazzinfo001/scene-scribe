@@ -548,19 +548,26 @@ export default function VFXAnimation() {
                   <Label>Reference Image (Optional)</Label>
                   <FileUploadZone
                     bucket="vfx-assets"
-                    acceptedFileTypes={['jpg', 'jpeg', 'png', 'webp']}
-                    maxSizeMB={10}
-                    onFileUploaded={(url, file) => handleFileUploaded(url, file, 'image')}
+                    acceptedFileTypes={['image']}
+                    maxSizeMB={20}
+                    onFileUploaded={(url, file) => handleFileUploaded(url, file, 'meshReference')}
                     className="mt-1"
                   />
                 </div>
 
                 <Button 
                   onClick={handleMeshGeneration} 
-                  disabled={isProcessing || !meshType || !complexity || !meshDescription}
+                  disabled={isProcessing || !meshType || !complexity}
                   className="w-full"
                 >
-                  {isProcessing ? 'Generating 3D Mesh...' : 'Generate 3D Mesh'}
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    'Generate Mesh'
+                  )}
                 </Button>
               </CardContent>
             </Card>

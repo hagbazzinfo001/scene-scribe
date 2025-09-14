@@ -16,6 +16,8 @@ import { JobPreview } from '@/components/JobPreview';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { useTranslation } from 'react-i18next';
 import jsPDF from 'jspdf';
+import { TranslationTool } from '@/components/TranslationTool';
+
 export default function ProjectWorkspace() {
   const {
     id: projectId
@@ -237,7 +239,7 @@ export default function ProjectWorkspace() {
             <TabsList className="mb-4">
               <TabsTrigger value="assets">Assets</TabsTrigger>
               <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
-              
+              <TabsTrigger value="translate">Translate</TabsTrigger>
               <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
@@ -360,6 +362,10 @@ export default function ProjectWorkspace() {
                 doc.save(`script-breakdown-${Date.now()}.pdf`);
               }
             }} />
+            </TabsContent>
+
+            <TabsContent value="translate" className="flex-1">
+              <TranslationTool projectId={projectId!} />
             </TabsContent>
 
             <TabsContent value="vfx" className="flex-1">
