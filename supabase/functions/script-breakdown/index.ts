@@ -77,21 +77,24 @@ serve(async (req) => {
       );
     }
 
-    // Process with Anthropic Claude
-    const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!anthropicApiKey) {
+    // Process with Replicate LLaMA
+    const replicateApiKey = Deno.env.get('REPLICATE_API_KEY');
+    if (!replicateApiKey) {
       await supabase.from('jobs').update({ 
         status: 'error', 
-        error: 'Anthropic API key not configured' 
+        error: 'Replicate API key not configured' 
       }).eq('id', job.id);
       
       return new Response(
-        JSON.stringify({ error: 'Anthropic API key not configured' }),
+        JSON.stringify({ error: 'Replicate API key not configured' }),
         { status: 500, headers: corsHeaders }
       );
     }
 
-    const prompt = `You are a Nollywood script breakdown assistant. Analyze this screenplay and return ONLY valid JSON with this exact structure:
+    const Replicate = (await import('https://esm.sh/replicate@0.25.2')).default;
+    const replicate = new Replicate({ auth: replicateApiKey });
+
+    const systemPrompt = `You are a professional Nollywood script breakdown assistant. Analyze this screenplay and return ONLY valid JSON with this exact structure:
 
 {
   "scenes": [
@@ -134,37 +137,24 @@ serve(async (req) => {
   }
 }
 
-Script content:
-${script_content}`;
+Focus on practical Nollywood production elements.`;
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': anthropicApiKey,
-          'Content-Type': 'application/json',
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-3-haiku-20240307',
-          max_tokens: 3000,
-          system: 'You are a professional Nollywood script breakdown assistant. Analyze the screenplay and return ONLY valid JSON with the exact structure specified. Focus on practical production elements.',
-          messages: [
-            {
-              role: 'user',
-              content: prompt
-            }
-          ]
-        }),
-      });
+      const output = await replicate.run(
+        "meta/llama-2-13b-chat:f4e2de70d66816a838a89eeeb621910adffb0dd0baba3976c96980970978018d",
+        {
+          input: {
+            prompt: `${systemPrompt}\n\nScript content:\n${script_content}`,
+            system_prompt: systemPrompt,
+            max_new_tokens: 2000,
+            temperature: 0.3,
+            top_p: 0.9,
+            repetition_penalty: 1.15
+          }
+        }
+      );
 
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error?.message || 'Anthropic API error');
-      }
-
-      const content = data.content[0].text;
+      const content = Array.isArray(output) ? output.join('') : output;
       const jsonText = extractJSON(content);
       const parsed = JSON.parse(jsonText);
 

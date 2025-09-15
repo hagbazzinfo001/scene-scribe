@@ -40,3 +40,6 @@ verify_jwt = true
 
 [functions.nllb-translate]
 verify_jwt = true
+
+[functions.script-breakdown-free]
+verify_jwt = false

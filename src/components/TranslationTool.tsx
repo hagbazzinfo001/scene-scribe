@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,6 +19,31 @@ export function TranslationTool({ projectId }: TranslationToolProps) {
   const [targetLanguage, setTargetLanguage] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
+  const [scriptContent, setScriptContent] = useState('');
+
+  // Load script content if projectId is available
+  useEffect(() => {
+    if (projectId) {
+      loadProjectScript();
+    }
+  }, [projectId]);
+
+  const loadProjectScript = async () => {
+    try {
+      const { data: scripts } = await supabase
+        .from('scripts')
+        .select('content')
+        .eq('project_id', projectId)
+        .limit(1);
+      
+      if (scripts && scripts[0]?.content) {
+        setScriptContent(scripts[0].content);
+        setText(scripts[0].content);
+      }
+    } catch (error) {
+      console.error('Failed to load script:', error);
+    }
+  };
 
   const africanLanguages = [
     { code: 'yoruba', name: 'Yoruba' },
@@ -96,11 +121,16 @@ export function TranslationTool({ projectId }: TranslationToolProps) {
             <Label htmlFor="source-text">Original Text (English)</Label>
             <Textarea
               id="source-text"
-              placeholder="Enter script text to translate..."
+              placeholder={projectId ? "Script content loaded from project..." : "Enter script text to translate..."}
               value={text}
               onChange={(e) => setText(e.target.value)}
               className="mt-1 min-h-[200px]"
             />
+            {projectId && scriptContent && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Script content auto-loaded from project
+              </p>
+            )}
           </div>
           
           <div>

@@ -31,14 +31,21 @@ serve(async (req) => {
 
     console.log('Color-grade request:', { imageUrl, prompt })
 
-    // Use working image enhancement model
+    // Use InstantID for style-aware color grading
     const output = await replicate.run(
-      "tencentarc/gfpgan:9283608cc6b7be6b65a8e44983db012355fde4132009bf99d976b2f0896856a3",
+      "instantx/instantid:9c88af5c0f51ae59a166985fc0c66e90c3e72db7bbdc1dd38dfed6b79c28fae3",
       {
         input: {
-          img: imageUrl,
-          version: "v1.4",
-          scale: 2
+          image: imageUrl,
+          prompt: prompt + " - Apply professional color grading and cinematic enhancement",
+          negative_prompt: "low quality, blurry, oversaturated",
+          pose_strength: 0.4,
+          canny_strength: 0.3,
+          depth_strength: 0.5,
+          adapter_strength: 0.8,
+          num_inference_steps: 30,
+          guidance_scale: 5,
+          seed: Math.floor(Math.random() * 1000000)
         }
       }
     )

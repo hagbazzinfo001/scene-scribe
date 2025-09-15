@@ -81,14 +81,19 @@ serve(async (req) => {
 
     // Save processed audio to asset library when project_id provided
     if (body.project_id && userResult?.user?.id && processedUrl) {
+      // Create a proper signed URL that doesn't expire quickly
+      const { data: uploadResult } = await supabase.storage
+        .from('audio-uploads')
+        .createSignedUrl(`${userResult.user.id}/cleaned-${Date.now()}.wav`, 3600 * 24 * 7); // 7 days
+      
       await supabase.from('user_assets').insert({
         user_id: userResult.user.id,
         project_id: body.project_id,
         filename: `cleaned-${Date.now()}.wav`,
-        file_url: processedUrl,
+        file_url: uploadResult?.signedUrl || processedUrl,
         file_type: 'audio',
         storage_path: `audio/${userResult.user.id}/${Date.now()}.wav`,
-        metadata: { source: body.audioUrl },
+        metadata: { source: body.audioUrl, processed: true },
         processing_status: 'completed'
       });
     }
