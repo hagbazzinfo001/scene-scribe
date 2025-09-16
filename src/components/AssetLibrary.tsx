@@ -170,7 +170,8 @@ export function AssetLibrary({ projectId }: AssetLibraryProps) {
                     <Button 
                       variant="ghost" 
                       size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                      className="h-8 w-8 p-0 opacity-100 hover:bg-destructive/10 shrink-0"
+                      title="Delete asset"
                     >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>

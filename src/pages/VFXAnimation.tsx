@@ -319,7 +319,7 @@ export default function VFXAnimation() {
           }
         }));
       } else {
-        ({ data, error } = await supabase.functions.invoke('color-grade', {
+        ({ data, error } = await supabase.functions.invoke('simple-color-grade', {
           body: {
             imageUrl: selectedFiles.colorGradeMedia,
             prompt: `Apply ${colorGradeStyle} color grading style to this image. Enhance the cinematic look with professional color correction, vibrant colors, and balanced exposure.`

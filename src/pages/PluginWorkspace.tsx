@@ -145,7 +145,7 @@ export function PluginWorkspace() {
       const filePath = await handleFileUpload(videoFile, 'video-uploads');
       if (!filePath) throw new Error('File upload failed');
 
-      const { data, error } = await supabase.functions.invoke('roto-tracking', {
+      const { data, error } = await supabase.functions.invoke('simple-roto', {
         body: {
           file_path: filePath,
           frame_range: frameRange,
@@ -190,7 +190,7 @@ export function PluginWorkspace() {
       const filePath = await handleFileUpload(audioFile, 'audio-uploads');
       if (!filePath) throw new Error('File upload failed');
 
-      const { data, error } = await supabase.functions.invoke('audio-cleanup', {
+      const { data, error } = await supabase.functions.invoke('simple-audio-clean', {
         body: {
           file_path: filePath,
           preset,
@@ -231,7 +231,7 @@ export function PluginWorkspace() {
       const filePath = await handleFileUpload(colorVideoFile, 'video-uploads');
       if (!filePath) throw new Error('File upload failed');
 
-      const { data, error } = await supabase.functions.invoke('color-grade', {
+      const { data, error } = await supabase.functions.invoke('simple-color-grade', {
         body: {
           file_path: filePath,
           preset: colorPreset,

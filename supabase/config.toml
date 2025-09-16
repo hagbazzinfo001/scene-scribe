@@ -43,3 +43,18 @@ verify_jwt = true
 
 [functions.script-breakdown-free]
 verify_jwt = false
+
+[functions.simple-roto]
+verify_jwt = true
+
+[functions.simple-audio-clean]
+verify_jwt = true
+
+[functions.simple-color-grade]
+verify_jwt = true
+
+[functions.chat-send]
+verify_jwt = true
+
+[functions.job-status]
+verify_jwt = true

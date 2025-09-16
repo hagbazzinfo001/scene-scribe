@@ -95,8 +95,8 @@ export default function AudioCleanup() {
 
       console.log('Uploaded audio URL:', audioUrl);
 
-      // Call Replicate audio cleanup function
-      const { data, error } = await supabase.functions.invoke('audio-cleanup', {
+      // Call simple audio cleanup function
+      const { data, error } = await supabase.functions.invoke('simple-audio-clean', {
         body: {
           audioUrl,
           duration: 10,

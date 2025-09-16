@@ -37,9 +37,9 @@ serve(async (req) => {
       );
     }
 
-    // Get job ID from URL path
-    const url = new URL(req.url);
-    const jobId = url.pathname.split('/').pop();
+    // Get job ID from request body
+    const body = await req.json();
+    const jobId = body.jobId;
 
     if (!jobId) {
       return new Response(
@@ -47,6 +47,8 @@ serve(async (req) => {
         { status: 400, headers: corsHeaders }
       );
     }
+
+    console.log('Checking job status for ID:', jobId);
 
     // Get job record (RLS will ensure user can only see their own jobs)
     const { data: job, error: fetchError } = await supabase
