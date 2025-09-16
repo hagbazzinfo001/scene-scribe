@@ -140,19 +140,19 @@ serve(async (req) => {
 Focus on practical Nollywood production elements.`;
 
     try {
-      const output = await replicate.run(
-        "meta/llama-2-13b-chat:f4e2de70d66816a838a89eeeb621910adffb0dd0baba3976c96980970978018d",
-        {
-          input: {
-            prompt: `${systemPrompt}\n\nScript content:\n${script_content}`,
-            system_prompt: systemPrompt,
-            max_new_tokens: 2000,
-            temperature: 0.3,
-            top_p: 0.9,
-            repetition_penalty: 1.15
-          }
+    const output = await replicate.run(
+      "meta/llama-2-13b-chat:f4e2de70d66816a838a89eeeb621910adffb0dd0baba3976c96980970978018d",
+      {
+        input: {
+          prompt: `${systemPrompt}\n\nScript content:\n${script_content}`,
+          system_prompt: systemPrompt,
+          max_new_tokens: 2000,
+          temperature: 0.1,
+          top_p: 0.9,
+          repetition_penalty: 1.15
         }
-      );
+      }
+    );
 
       const content = Array.isArray(output) ? output.join('') : output;
       const jsonText = extractJSON(content);

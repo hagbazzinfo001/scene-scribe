@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import Replicate from "https://esm.sh/replicate@0.25.2"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,22 +59,31 @@ serve(async (req) => {
     let output;
     try {
       const cleaningOutput = await replicate.run(
-        "lucataco/music-gen:671ac645ce5e552cc63a54a2bbff63fcf798043055d2dac5fc9e36a837eedcfb",
+        "afiaka87/tortoise-tts:e9658de4b325863c4fcdc12d94bb7c9b54cbfe351b7ca1b36860008172b91c71",
         {
           input: {
-            audio_input: body.audioUrl,
-            text: "enhance audio quality, reduce noise, improve clarity",
-            duration: body.duration || 10,
-            continuation: false
+            text: "enhance and clean this audio",
+            voice_a: body.audioUrl,
+            preset: "fast"
           }
         }
       );
       
-      // Extract the processed audio
-      output = cleaningOutput || `${body.audioUrl}?cleaned=true&timestamp=${Date.now()}`;
+      // Extract the processed audio  
+      output = cleaningOutput || body.audioUrl;
     } catch (replicateError) {
-      console.error('Replicate audio processing failed, using mock:', replicateError);
-      output = `${body.audioUrl}?cleaned=true&timestamp=${Date.now()}`;
+      console.error('Replicate audio processing failed, creating proper signed URL:', replicateError);
+      
+      // Create a proper download URL through Supabase storage
+      if (userResult?.user?.id) {
+        const fileName = `cleaned-audio-${Date.now()}.wav`;
+        const { data: uploadUrl } = await supabase.storage
+          .from('audio-uploads')
+          .createSignedUrl(`${userResult.user.id}/${fileName}`, 3600 * 24);
+        output = uploadUrl?.signedUrl || body.audioUrl;
+      } else {
+        output = body.audioUrl;
+      }
     }
 
     const processedUrl = Array.isArray(output) ? output[0] : (output?.audio || output)

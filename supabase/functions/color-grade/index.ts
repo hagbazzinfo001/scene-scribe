@@ -31,20 +31,17 @@ serve(async (req) => {
 
     console.log('Color-grade request:', { imageUrl, prompt })
 
-    // Use InstantID for style-aware color grading
+    // Use stable diffusion for color grading
     const output = await replicate.run(
-      "instantx/instantid:9c88af5c0f51ae59a166985fc0c66e90c3e72db7bbdc1dd38dfed6b79c28fae3",
+      "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
       {
         input: {
           image: imageUrl,
-          prompt: prompt + " - Apply professional color grading and cinematic enhancement",
-          negative_prompt: "low quality, blurry, oversaturated",
-          pose_strength: 0.4,
-          canny_strength: 0.3,
-          depth_strength: 0.5,
-          adapter_strength: 0.8,
+          prompt: `professional color grading, cinematic enhancement, ${prompt}, film look, vibrant colors`,
+          negative_prompt: "low quality, blurry, oversaturated, amateur, bad lighting",
           num_inference_steps: 30,
-          guidance_scale: 5,
+          guidance_scale: 7.5,
+          strength: 0.8,
           seed: Math.floor(Math.random() * 1000000)
         }
       }

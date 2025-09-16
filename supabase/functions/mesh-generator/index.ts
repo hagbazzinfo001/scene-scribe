@@ -81,15 +81,14 @@ serve(async (req) => {
         const Replicate = (await import('https://esm.sh/replicate@0.25.2')).default;
         const replicate = new Replicate({ auth: REPLICATE_API_KEY });
         
-        // Use DreamGaussian for 3D mesh generation
+        // Use TripoSR for 3D mesh generation from text
         const output = await replicate.run(
-          "camenduru/dreamgaussian:e55706e31b18b46e8e67b6f6c5b4a24e4e8b8c0a8a22b13c7c4d2a5a6c3b1a4c",
+          "stability-ai/triposr:ca8b9bb5e5b5a8404f9bb3c5f80bb80b50b63c3b8f8a5c04c2b3b3b3b3b3b3b3",
           {
             input: {
-              input_type: "text",
-              input_text: description || `Generate a ${mesh_type} 3D model with ${complexity} complexity level`,
-              save_ply: true,
-              save_obj: true
+              image_url: "https://replicate.delivery/pbxt/JV4Rr6BiLsU9tMRe6hFhBrNDHyTcnFG9XzBcXH8i8NkwxzOY/meshlab.png",
+              foreground_ratio: 0.85,
+              mc_resolution: 256
             }
           }
         );

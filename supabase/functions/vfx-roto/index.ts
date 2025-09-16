@@ -101,11 +101,10 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          version: "43abb3d0e20ae3074b8b59b96fd8e3b6e8d38ba32b8e1d85dc7c23b9a71d4c8c", // SAM2 model
+          version: "d5fbb58fe2da7a00ec10e46c66e44d2c5bf25be3bf1c8aeea77d8ac5b1dc7fbc", // SAM2 video model
           input: {
             video: downloadData.signedUrl,
-            text_prompt: scene_description,
-            frame_range: frame_range || [0, -1]
+            text_prompt: scene_description
           }
         }),
       });

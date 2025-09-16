@@ -148,13 +148,11 @@ serve(async (req) => {
       
       // Use robust video matting model
       const output = await replicate.run(
-        "arielreplicate/robust_video_matting:latest",
+        "chenxwh/rvm:fb0a94ca9e90e04d95fec24f4b95a7f481d59efc97fbaaa07b2f8cf23ba1b7e8",
         {
           input: {
             video: urlData.signedUrl,
-            variant: "mobilenetv3", // faster variant
-            downsample_ratio: 0.25,
-            seq_chunk: 12
+            downsample_ratio: 0.25
           }
         }
       );
