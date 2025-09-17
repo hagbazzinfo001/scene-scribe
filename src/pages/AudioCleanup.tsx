@@ -99,18 +99,8 @@ export default function AudioCleanup() {
       const { data, error } = await supabase.functions.invoke('simple-audio-clean', {
         body: {
           audioUrl,
-          duration: 10,
-          topK: 250,
-          topP: 0.0,
-          temperature: 1.0,
-          classifierFreeGuidance: 3.0,
-          outputFormat: outputFormat,
-          normalizationStrategy: 'loudness',
-          noiseReduction: noiseReduction[0] / 100,
-          voiceEnhancement: voiceEnhancement[0] / 100,
-          sampleRate,
-          bitDepth,
-          processingMode
+          projectId: '',
+          preset: 'voice_enhance'
         }
       });
 
@@ -120,14 +110,8 @@ export default function AudioCleanup() {
 
       console.log('Audio processing result:', data);
 
-      if (data?.output) {
-        const out = Array.isArray(data.output)
-          ? data.output[0]
-          : (typeof data.output === 'object' && data.output?.audio)
-            ? data.output.audio
-            : (data.output.url || data.output);
-        if (!out) throw new Error('No valid output URL returned');
-        setProcessedAudioUrl(out);
+      if (data?.success && data?.outputUrl) {
+        setProcessedAudioUrl(data.outputUrl);
         toast.success('Audio processing completed!');
       } else {
         throw new Error('No processed audio returned');

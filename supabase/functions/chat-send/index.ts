@@ -142,8 +142,17 @@ serve(async (req) => {
       );
     }
 
-    const { projectId, userMessage } = await req.json();
-    const projectContext = isValidUUID(projectId) ? projectId : null;
+    const body = await req.json();
+    const { projectId, userMessage, message } = body;
+    const actualMessage = userMessage || message || '';
+    const projectContext = (projectId && isValidUUID(projectId)) ? projectId : null;
+    
+    if (!actualMessage) {
+      return new Response(
+        JSON.stringify({ error: 'Message is required' }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
 
     // 1) Persist user message - best-effort (do not fail entire flow) - only if projectContext is valid
     let userMsgRow;
@@ -152,7 +161,7 @@ serve(async (req) => {
         const { data, error } = await supabase.from("chat_messages").insert({
           project_id: projectContext,
           user_id: user.id,
-          message: userMessage,
+          message: actualMessage,
           is_ai_response: false
         }).select().single();
         if (error) throw error;
@@ -166,7 +175,7 @@ serve(async (req) => {
     // 2) Call AI
     let aiResult;
     try {
-      aiResult = await callAI(userMessage, projectContext);
+      aiResult = await callAI(actualMessage, projectContext);
     } catch (err) {
       console.error("chat: aiService.callAI error", err);
       // Persist an error message entry and return friendly message

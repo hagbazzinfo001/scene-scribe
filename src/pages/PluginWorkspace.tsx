@@ -105,10 +105,10 @@ export function PluginWorkspace() {
 
     setIsProcessing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('script-breakdown', {
+      const { data, error } = await supabase.functions.invoke('simple-script-breakdown', {
         body: {
-          script_content: scriptContent,
-          depth: breakdownDepth
+          scriptContent: scriptContent,
+          projectId: null
         }
       });
 

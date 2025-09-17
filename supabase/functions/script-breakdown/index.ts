@@ -141,13 +141,11 @@ Focus on practical Nollywood production elements.`;
 
     try {
     const output = await replicate.run(
-      "meta/llama-2-13b-chat:f4e2de70d66816a838a89eeeb621910adffb0dd0baba3976c96980970978018d",
+      "meta/llama-2-7b-chat:8e6975e5ed6174911a6ff3d60540dfd4844201974602551e10e9e87ab143d81e",
       {
         input: {
           prompt: `${systemPrompt}\n\nScript content:\n${script_content}`,
-          system_prompt: systemPrompt,
           max_new_tokens: 2000,
-          temperature: 0.1,
           top_p: 0.9,
           repetition_penalty: 1.15
         }

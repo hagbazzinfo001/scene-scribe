@@ -10,7 +10,8 @@ interface BreakdownResultsProps {
 
 export function BreakdownResults({ jobs, onExport }: BreakdownResultsProps) {
   const breakdownJobs = jobs.filter(job => 
-    job.type === 'script-breakdown' && job.status === 'done' && job.output_data
+    (job.type === 'script-breakdown' || job.type === 'script_breakdown') && 
+    job.status === 'done' && job.output_data
   );
 
   if (breakdownJobs.length === 0) {

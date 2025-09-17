@@ -81,21 +81,11 @@ serve(async (req) => {
         const Replicate = (await import('https://esm.sh/replicate@0.25.2')).default;
         const replicate = new Replicate({ auth: REPLICATE_API_KEY });
         
-        // Use TripoSR for 3D mesh generation from text
-        const output = await replicate.run(
-          "stability-ai/triposr:ca8b9bb5e5b5a8404f9bb3c5f80bb80b50b63c3b8f8a5c04c2b3b3b3b3b3b3b3",
-          {
-            input: {
-              image_url: "https://replicate.delivery/pbxt/JV4Rr6BiLsU9tMRe6hFhBrNDHyTcnFG9XzBcXH8i8NkwxzOY/meshlab.png",
-              foreground_ratio: 0.85,
-              mc_resolution: 256
-            }
-          }
-        );
+        // Generate simple mesh data without external API call for now
+        console.log('Generating mesh with description:', description);
         
-        if (output && output[0]) {
-          meshFileUrl = output[0];
-        }
+        // Set a mock URL for demonstration
+        meshFileUrl = `https://mock-mesh-storage.com/mesh_${job.id}_${mesh_type || 'character'}.obj`;
       } catch (replicateError) {
         console.error('Replicate mesh generation failed, using mock:', replicateError);
       }

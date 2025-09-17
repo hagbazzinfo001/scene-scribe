@@ -58,3 +58,6 @@ verify_jwt = true
 
 [functions.job-status]
 verify_jwt = true
+
+[functions.simple-script-breakdown]
+verify_jwt = true
