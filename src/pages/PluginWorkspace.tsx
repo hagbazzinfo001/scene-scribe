@@ -105,10 +105,18 @@ export function PluginWorkspace() {
 
     setIsProcessing(true);
     try {
+      const authToken = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!authToken) {
+        throw new Error('Authentication required');
+      }
+
       const { data, error } = await supabase.functions.invoke('simple-script-breakdown', {
         body: {
           scriptContent: scriptContent,
           projectId: null
+        },
+        headers: {
+          Authorization: `Bearer ${authToken}`
         }
       });
 

@@ -96,11 +96,19 @@ export default function AudioCleanup() {
       console.log('Uploaded audio URL:', audioUrl);
 
       // Call simple audio cleanup function
+      const authToken = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!authToken) {
+        throw new Error('Authentication required');
+      }
+
       const { data, error } = await supabase.functions.invoke('simple-audio-clean', {
         body: {
           audioUrl,
           projectId: '',
           preset: 'voice_enhance'
+        },
+        headers: {
+          Authorization: `Bearer ${authToken}`
         }
       });
 

@@ -48,6 +48,8 @@ export default function VFXAnimation() {
   
   // [COLOR_GRADE] Color Grading States
   const [colorGradeStyle, setColorGradeStyle] = useState('');
+  const [colorGradeIntensity, setColorGradeIntensity] = useState(1.0);
+  const [frameRange, setFrameRange] = useState('1-30');
   const [colorGradeResults, setColorGradeResults] = useState<any>(null);
 
   // [STORAGE_INTEGRATION] Fetch project assets and persist across sessions
@@ -160,12 +162,19 @@ export default function VFXAnimation() {
 
     setIsProcessing(true);
     try {
+      const authToken = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!authToken) {
+        throw new Error('Authentication required');
+      }
+
       const { data, error } = await supabase.functions.invoke('simple-roto', {
         body: {
           videoUrl: selectedFiles.video,
           description: sceneDescription.trim(),
-          projectId: projectId,
-          frameRange: "1-30"
+          frameRange: frameRange || "1-30"
+        },
+        headers: {
+          Authorization: `Bearer ${authToken}`
         }
       });
 
@@ -229,11 +238,20 @@ export default function VFXAnimation() {
 
     setIsProcessing(true);
     try {
+      const authToken = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!authToken) {
+        throw new Error('Authentication required');
+      }
+
       const { data, error } = await supabase.functions.invoke('mesh-generator', {
         body: {
-          project_id: projectId,
+          project_id: projectId || 'temp-project',
           mesh_type: meshType,
-          complexity: complexity
+          complexity: complexity,
+          description: meshDescription || ''
+        },
+        headers: {
+          Authorization: `Bearer ${authToken}`
         }
       });
 
@@ -300,30 +318,34 @@ export default function VFXAnimation() {
 
     setIsProcessing(true);
     try {
+      const authToken = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!authToken) {
+        throw new Error('Authentication required');
+      }
+
       let data, error;
       const isVideo = selectedTypes.colorGradeMedia?.startsWith('video');
       
       if (isVideo) {
-        ({ data, error } = await supabase.functions.invoke('vfx-color-grade', {
+        ({ data, error } = await supabase.functions.invoke('simple-color-grade', {
           body: {
-            project_id: projectId,
-            video_path: selectedFiles.colorGradeMedia,
-            style_reference: colorGradeStyle,
-            options: {
-              contrast: 1.2,
-              saturation: 1.1,
-              brightness: 1.0,
-              temperature: 0,
-              tint: 0
-            }
+            assetUrl: selectedFiles.colorGradeMedia,
+            style: colorGradeStyle,
+            intensity: colorGradeIntensity
+          },
+          headers: {
+            Authorization: `Bearer ${authToken}`
           }
         }));
       } else {
         ({ data, error } = await supabase.functions.invoke('simple-color-grade', {
           body: {
-            videoUrl: selectedFiles.colorGradeMedia,
-            projectId: projectId,
-            colorPreset: colorGradeStyle
+            assetUrl: selectedFiles.colorGradeMedia,
+            style: colorGradeStyle,
+            intensity: colorGradeIntensity
+          },
+          headers: {
+            Authorization: `Bearer ${authToken}`
           }
         }));
       }
