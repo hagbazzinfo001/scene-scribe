@@ -282,6 +282,7 @@ export type Database = {
         Row: {
           ai_model: string | null
           ai_provider: string | null
+          asset_id: string | null
           completed_at: string | null
           cost_estimate: number | null
           created_at: string | null
@@ -305,6 +306,7 @@ export type Database = {
         Insert: {
           ai_model?: string | null
           ai_provider?: string | null
+          asset_id?: string | null
           completed_at?: string | null
           cost_estimate?: number | null
           created_at?: string | null
@@ -328,6 +330,7 @@ export type Database = {
         Update: {
           ai_model?: string | null
           ai_provider?: string | null
+          asset_id?: string | null
           completed_at?: string | null
           cost_estimate?: number | null
           created_at?: string | null
@@ -349,6 +352,62 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      mesh_assets: {
+        Row: {
+          created_at: string | null
+          credits_cost: number | null
+          id: string
+          input_image_path: string | null
+          mime: string | null
+          output_path: string | null
+          owner_id: string
+          project_id: string | null
+          prompt: string | null
+          result_meta: Json | null
+          size: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          credits_cost?: number | null
+          id?: string
+          input_image_path?: string | null
+          mime?: string | null
+          output_path?: string | null
+          owner_id: string
+          project_id?: string | null
+          prompt?: string | null
+          result_meta?: Json | null
+          size?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          credits_cost?: number | null
+          id?: string
+          input_image_path?: string | null
+          mime?: string | null
+          output_path?: string | null
+          owner_id?: string
+          project_id?: string | null
+          prompt?: string | null
+          result_meta?: Json | null
+          size?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mesh_assets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       model_benchmarks: {
         Row: {

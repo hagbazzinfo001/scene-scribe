@@ -61,3 +61,9 @@ verify_jwt = true
 
 [functions.simple-script-breakdown]
 verify_jwt = true
+
+[functions.meshify-enqueue]
+verify_jwt = true
+
+[functions.get-mesh-asset]
+verify_jwt = true
