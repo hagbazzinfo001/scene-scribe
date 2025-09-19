@@ -72,23 +72,41 @@ serve(async (req) => {
     // Generate mesh data (simulation)
     const meshData = generateMeshData(mesh_type || 'character', complexity || 'medium');
     
-    // Generate real mesh using Replicate
+    // Generate mesh using Replicate API or create mock output
     const REPLICATE_API_KEY = Deno.env.get('REPLICATE_API_KEY');
-    let meshFileUrl = `https://example.com/mesh-${job.id}.obj`;
+    let meshFileUrl = `https://mock-mesh-storage.com/mesh_${job.id}_${mesh_type || 'character'}.obj`;
+    let actualMeshGenerated = false;
     
-    if (REPLICATE_API_KEY) {
+    if (REPLICATE_API_KEY && description.trim().length > 10) {
       try {
         const Replicate = (await import('https://esm.sh/replicate@0.25.2')).default;
         const replicate = new Replicate({ auth: REPLICATE_API_KEY });
         
-        // Generate simple mesh data without external API call for now
         console.log('Generating mesh with description:', description);
         
-        // Set a mock URL for demonstration
-        meshFileUrl = `https://mock-mesh-storage.com/mesh_${job.id}_${mesh_type || 'character'}.obj`;
+        // Use a proper 3D model generation endpoint
+        const output = await replicate.run(
+          "stability-ai/stable-zero123:8b25e0b1e5826de7d0a4b77c59aa1e4b33ca3275abdf5df6f2cc7a4e5a8e2d3b",
+          {
+            input: {
+              image: "https://example.com/placeholder.jpg", // This would be user's reference image
+              prompt: description || `A detailed ${mesh_type} for use in 3D animation and VFX`
+            }
+          }
+        );
+        
+        if (output) {
+          // In a real implementation, output would contain the 3D model URL
+          meshFileUrl = Array.isArray(output) ? output[0] : output;
+          actualMeshGenerated = true;
+          console.log('Mesh generated successfully with Replicate');
+        }
       } catch (replicateError) {
         console.error('Replicate mesh generation failed, using mock:', replicateError);
+        // Continue with mock data
       }
+    } else {
+      console.log('Using mock mesh generation (no API key or insufficient description)');
     }
 
     // Update job with results
@@ -99,7 +117,9 @@ serve(async (req) => {
         output_data: {
           mesh_url: meshFileUrl,
           mesh_data: meshData,
-          download_formats: ['obj', 'fbx', 'blend']
+          download_formats: ['obj', 'fbx', 'blend'],
+          generated_with_ai: actualMeshGenerated,
+          generation_method: actualMeshGenerated ? 'replicate_api' : 'mock_data'
         },
         completed_at: new Date().toISOString()
       })

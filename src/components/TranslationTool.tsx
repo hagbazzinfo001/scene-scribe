@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Languages, Download, Loader2 } from 'lucide-react';
+import { Languages, Download, Loader2, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -20,6 +20,7 @@ export function TranslationTool({ projectId }: TranslationToolProps) {
   const [translatedText, setTranslatedText] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
   const [scriptContent, setScriptContent] = useState('');
+  const [translationAssetId, setTranslationAssetId] = useState<string | null>(null);
 
   // Load script content if projectId is available
   useEffect(() => {
@@ -70,11 +71,12 @@ export function TranslationTool({ projectId }: TranslationToolProps) {
         throw new Error('Authentication required');
       }
 
-      const { data, error } = await supabase.functions.invoke('nllb-translate', {
+      // Use the new breakdown-translate function for better storage and error handling
+      const { data, error } = await supabase.functions.invoke('breakdown-translate', {
         body: {
-          text: text.trim(),
-          targetLanguage,
-          sourceLanguage: 'eng_Latn'
+          scriptText: text.trim(),
+          targetLangs: [targetLanguage],
+          projectId
         },
         headers: {
           Authorization: `Bearer ${authToken}`
@@ -83,8 +85,14 @@ export function TranslationTool({ projectId }: TranslationToolProps) {
 
       if (error) throw error;
       
-      setTranslatedText(data.translatedText);
-      toast.success(`Translated to ${africanLanguages.find(l => l.code === targetLanguage)?.name || targetLanguage}!`);
+      // Get the translation for the selected language
+      const translation = data.translations?.[targetLanguage];
+      if (translation) {
+        setTranslatedText(translation);
+        toast.success(`Translated to ${africanLanguages.find(l => l.code === targetLanguage)?.name || targetLanguage}!`);
+      } else {
+        throw new Error('No translation received');
+      }
       
     } catch (error: any) {
       console.error('Translation error:', error);
@@ -105,6 +113,28 @@ export function TranslationTool({ projectId }: TranslationToolProps) {
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Translation downloaded!');
+  };
+
+  const handleDelete = async () => {
+    if (!translationAssetId) {
+      toast.error('No translation to delete');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('delete-asset', {
+        body: { assetId: translationAssetId }
+      });
+
+      if (error) throw error;
+
+      setTranslatedText('');
+      setTranslationAssetId(null);
+      toast.success('Translation deleted successfully');
+    } catch (error: any) {
+      console.error('Delete error:', error);
+      toast.error(`Failed to delete translation: ${error.message}`);
+    }
   };
 
   return (
@@ -181,10 +211,15 @@ export function TranslationTool({ projectId }: TranslationToolProps) {
                   className="mt-1 min-h-[200px]"
                 />
               </div>
-              <Button onClick={handleDownload} className="w-full">
-                <Download className="h-4 w-4 mr-2" />
-                Download Translation
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handleDownload} className="flex-1">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Translation
+                </Button>
+                <Button onClick={handleDelete} variant="destructive" size="icon">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">

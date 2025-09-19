@@ -2,11 +2,99 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface BreakdownResultsProps {
   jobs: any[];
   onExport: (job: any, format: string) => void;
 }
+
+const exportToCSV = (job: any) => {
+  const breakdown = job.output_data;
+  let csvContent = "Type,Name,Description,Characters\n";
+  
+  if (breakdown?.scenes) {
+    breakdown.scenes.forEach((scene: any) => {
+      const chars = scene.characters ? scene.characters.join('; ') : '';
+      csvContent += `Scene,"${scene.location || ''}","${scene.description || ''}","${chars}"\n`;
+    });
+  }
+  
+  if (breakdown?.characters) {
+    breakdown.characters.forEach((char: any) => {
+      csvContent += `Character,"${char.name || char}","${char.importance || ''}",""\n`;
+    });
+  }
+  
+  if (breakdown?.props) {
+    breakdown.props.forEach((prop: string) => {
+      csvContent += `Prop,"${prop}","",""\n`;
+    });
+  }
+  
+  if (breakdown?.locations) {
+    breakdown.locations.forEach((location: string) => {
+      csvContent += `Location,"${location}","",""\n`;
+    });
+  }
+  
+  const blob = new Blob([csvContent], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `script-breakdown-${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast.success('CSV exported successfully!');
+};
+
+const exportToPDF = (job: any) => {
+  // Simple PDF export - in production, you'd use a proper PDF library
+  const breakdown = job.output_data;
+  let textContent = "SCRIPT BREAKDOWN REPORT\n\n";
+  
+  if (breakdown?.scenes) {
+    textContent += "SCENES:\n";
+    breakdown.scenes.forEach((scene: any, idx: number) => {
+      textContent += `${idx + 1}. ${scene.location || 'Unknown Location'}\n`;
+      textContent += `   ${scene.description || 'No description'}\n`;
+      if (scene.characters) {
+        textContent += `   Characters: ${scene.characters.join(', ')}\n`;
+      }
+      textContent += "\n";
+    });
+  }
+  
+  if (breakdown?.characters) {
+    textContent += "\nCHARACTERS:\n";
+    breakdown.characters.forEach((char: any) => {
+      textContent += `- ${char.name || char}${char.importance ? ` (${char.importance})` : ''}\n`;
+    });
+  }
+  
+  if (breakdown?.props) {
+    textContent += "\nPROPS:\n";
+    breakdown.props.forEach((prop: string) => {
+      textContent += `- ${prop}\n`;
+    });
+  }
+  
+  if (breakdown?.locations) {
+    textContent += "\nLOCATIONS:\n";
+    breakdown.locations.forEach((location: string) => {
+      textContent += `- ${location}\n`;
+    });
+  }
+  
+  const blob = new Blob([textContent], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `script-breakdown-${Date.now()}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast.success('Report exported successfully!');
+};
 
 export function BreakdownResults({ jobs, onExport }: BreakdownResultsProps) {
   const breakdownJobs = jobs.filter(job => 
@@ -40,7 +128,7 @@ export function BreakdownResults({ jobs, onExport }: BreakdownResultsProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onExport(job, 'csv')}
+                  onClick={() => exportToCSV(job)}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export CSV
@@ -48,7 +136,7 @@ export function BreakdownResults({ jobs, onExport }: BreakdownResultsProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onExport(job, 'pdf')}
+                  onClick={() => exportToPDF(job)}
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export PDF

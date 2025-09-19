@@ -74,13 +74,12 @@ async function callAI(message: string, projectContext?: string) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-5-2025-08-07',
         messages: [
           { role: 'system', content: context },
           { role: 'user', content: message }
         ],
-        max_tokens: 1000,
-        temperature: 0.7
+        max_completion_tokens: 1000
       }),
     });
 
@@ -98,7 +97,7 @@ async function callAI(message: string, projectContext?: string) {
         tokensUsed: data.usage?.prompt_tokens + data.usage?.completion_tokens || 0,
         responseTimeMs: responseTime,
         provider: 'openai',
-        model: 'gpt-3.5-turbo'
+        model: 'gpt-5-2025-08-07'
       }
     };
   } catch (error) {
@@ -110,7 +109,7 @@ async function callAI(message: string, projectContext?: string) {
         errorType: error.message,
         responseTimeMs: responseTime,
         provider: 'openai',
-        model: 'gpt-3.5-turbo'
+        model: 'gpt-5-2025-08-07'
       }
     };
   }
