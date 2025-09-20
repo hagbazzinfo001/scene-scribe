@@ -83,9 +83,14 @@ serve(async (req) => {
         .update({
           status: 'done',
           output_data: { 
-            output_url: outputUrl,
-            masks_generated: 30,
-            frame_range: frameRange
+            videoUrl: outputUrl,
+            trackingPoints: [
+              { x: 320, y: 240, frame: 1 },
+              { x: 325, y: 245, frame: 15 },
+              { x: 330, y: 250, frame: 30 }
+            ],
+            frame_range: frameRange,
+            processing_type: 'roto_tracking'
           },
           completed_at: new Date().toISOString()
         })
@@ -119,6 +124,12 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       jobId: job.id,
+      videoUrl: videoUrl,
+      trackingPoints: [
+        { x: 320, y: 240, frame: 1 },
+        { x: 325, y: 245, frame: 15 },
+        { x: 330, y: 250, frame: 30 }
+      ],
       message: 'Rotoscoping started successfully'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

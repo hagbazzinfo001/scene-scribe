@@ -19,7 +19,7 @@ async function trackUsage(metrics: any, projectId?: string) {
     const safeProjectId = (projectId && isValidUUID(projectId)) ? projectId : null;
     await supabase.from("ai_usage_analytics").insert({
       provider: metrics.provider || 'openai',
-      model: metrics.model || 'gpt-5-2025-08-07',
+      model: metrics.model || 'gpt-4o-mini',
       endpoint: metrics.endpoint || 'chat-send',
       tokens_used: metrics.tokensUsed || null,
       cost_estimate: metrics.costEstimate || null,
@@ -74,12 +74,13 @@ async function callAI(message: string, projectContext?: string) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-5-2025-08-07',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: context },
           { role: 'user', content: message }
         ],
-        max_completion_tokens: 1000
+        max_tokens: 1000,
+        temperature: 0.7
       }),
     });
 
@@ -97,7 +98,7 @@ async function callAI(message: string, projectContext?: string) {
         tokensUsed: data.usage?.prompt_tokens + data.usage?.completion_tokens || 0,
         responseTimeMs: responseTime,
         provider: 'openai',
-        model: 'gpt-5-2025-08-07'
+        model: 'gpt-4o-mini'
       }
     };
   } catch (error) {
@@ -109,7 +110,7 @@ async function callAI(message: string, projectContext?: string) {
         errorType: error.message,
         responseTimeMs: responseTime,
         provider: 'openai',
-        model: 'gpt-5-2025-08-07'
+        model: 'gpt-4o-mini'
       }
     };
   }

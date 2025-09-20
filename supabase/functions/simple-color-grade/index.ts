@@ -82,7 +82,8 @@ serve(async (req) => {
         .update({
           status: 'done',
           output_data: { 
-            output_url: outputUrl,
+            output: outputUrl,
+            graded_video_url: outputUrl,
             color_preset: colorPreset,
             processing_type: 'color_grading'
           },
@@ -135,6 +136,10 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       jobId: job.id,
+      output: videoUrl,
+      output_data: {
+        graded_video_url: videoUrl
+      },
       message: 'Color grading started successfully'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

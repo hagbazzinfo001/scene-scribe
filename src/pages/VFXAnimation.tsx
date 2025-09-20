@@ -170,6 +170,7 @@ export default function VFXAnimation() {
       const { data, error } = await supabase.functions.invoke('simple-roto', {
         body: {
           videoUrl: selectedFiles.video,
+          projectId: projectId,
           description: sceneDescription.trim(),
           frameRange: frameRange || "1-30"
         },
@@ -245,7 +246,7 @@ export default function VFXAnimation() {
 
       const { data, error } = await supabase.functions.invoke('mesh-generator', {
         body: {
-          project_id: projectId || 'temp-project',
+          project_id: projectId || null,
           mesh_type: meshType,
           complexity: complexity,
           description: meshDescription || ''
@@ -329,9 +330,9 @@ export default function VFXAnimation() {
       if (isVideo) {
         ({ data, error } = await supabase.functions.invoke('simple-color-grade', {
           body: {
-            assetUrl: selectedFiles.colorGradeMedia,
-            style: colorGradeStyle,
-            intensity: colorGradeIntensity
+            videoUrl: selectedFiles.colorGradeMedia,
+            projectId: projectId,
+            colorPreset: colorGradeStyle
           },
           headers: {
             Authorization: `Bearer ${authToken}`
@@ -340,9 +341,9 @@ export default function VFXAnimation() {
       } else {
         ({ data, error } = await supabase.functions.invoke('simple-color-grade', {
           body: {
-            assetUrl: selectedFiles.colorGradeMedia,
-            style: colorGradeStyle,
-            intensity: colorGradeIntensity
+            videoUrl: selectedFiles.colorGradeMedia,
+            projectId: projectId,
+            colorPreset: colorGradeStyle
           },
           headers: {
             Authorization: `Bearer ${authToken}`

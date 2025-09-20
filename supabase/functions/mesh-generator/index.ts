@@ -39,12 +39,7 @@ serve(async (req) => {
 
     const { project_id, mesh_type, complexity, description = '' } = await req.json();
 
-    if (!project_id) {
-      return new Response(
-        JSON.stringify({ error: 'project_id is required' }),
-        { status: 400, headers: corsHeaders }
-      );
-    }
+    // project_id is optional - can be null for temp projects
 
     console.log('Mesh generation request:', { project_id, mesh_type, complexity });
 
@@ -53,7 +48,7 @@ serve(async (req) => {
       .from('jobs')
       .insert({
         user_id: user.id,
-        project_id,
+        project_id: project_id || null,
         type: 'mesh-generator',
         status: 'running',
         input_data: { mesh_type: mesh_type || 'character', complexity: complexity || 'medium', description }
