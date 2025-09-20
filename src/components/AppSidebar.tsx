@@ -6,7 +6,8 @@ import {
   LogOut, 
   Film,
   Plus,
-  Users
+  Users,
+  Shield
 } from "lucide-react";
 import {
   Sidebar,
@@ -31,6 +32,7 @@ const navigationItems = [
   { title: "Audio Cleanup", url: "/audio-cleanup", icon: Film },
   { title: "VFX & Animation", url: "/vfx-animation", icon: Plus },
   { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Admin", url: "/admin", icon: Shield },
 ];
 
 export function AppSidebar() {

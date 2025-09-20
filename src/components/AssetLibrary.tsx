@@ -199,7 +199,7 @@ export function AssetLibrary({ projectId }: AssetLibraryProps) {
             
             <CardContent className="space-y-3">
               {/* Preview */}
-              <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+              <div className="aspect-video bg-muted rounded-lg overflow-hidden relative">
                 {asset.file_type === 'video' || asset.file_type === 'audio' || asset.file_type === 'image' ? (
                   <MediaPreview url={asset.file_url} type={asset.file_type} />
                 ) : (
@@ -207,6 +207,12 @@ export function AssetLibrary({ projectId }: AssetLibraryProps) {
                     {getFileIcon(asset.file_type)}
                   </div>
                 )}
+                {/* Status overlay for better visibility */}
+                <div className="absolute top-2 right-2">
+                  <Badge variant="secondary" className={`${getStatusColor(asset.processing_status)} text-xs`}>
+                    {asset.processing_status}
+                  </Badge>
+                </div>
               </div>
 
               {/* Metadata */}
@@ -235,14 +241,14 @@ export function AssetLibrary({ projectId }: AssetLibraryProps) {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-2">
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => window.open(asset.file_url, '_blank')}
-                  className="flex-1"
+                  className="flex-1 h-8"
                 >
-                  <Download className="h-4 w-4 mr-2" />
+                  <Download className="h-3 w-3 mr-1" />
                   Download
                 </Button>
                 {(asset.file_type === 'video' || asset.file_type === 'audio') && (
@@ -250,8 +256,9 @@ export function AssetLibrary({ projectId }: AssetLibraryProps) {
                     variant="outline" 
                     size="sm"
                     onClick={() => setSelectedAsset(asset)}
+                    className="h-8 px-2"
                   >
-                    <Play className="h-4 w-4" />
+                    <Play className="h-3 w-3" />
                   </Button>
                 )}
               </div>

@@ -1,0 +1,406 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
+import { 
+  Users, 
+  Database, 
+  Activity, 
+  Key, 
+  Server,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Trash2,
+  RefreshCw,
+  Save
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
+
+export default function Admin() {
+  const { user } = useAuth();
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const [selectedTab, setSelectedTab] = useState('overview');
+
+  // Admin authentication check
+  const isAdmin = user?.email === 'admin@nollyai.com' || user?.user_metadata?.role === 'admin';
+
+  if (!isAdmin) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Card className="w-[400px]">
+          <CardContent className="pt-6 text-center">
+            <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+            <p className="text-muted-foreground">
+              You don't have permission to access the admin dashboard.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Fetch real data
+  const { data: stats } = useQuery({
+    queryKey: ['admin-stats'],
+    queryFn: async () => {
+      const [usersResult, projectsResult, jobsResult, assetsResult] = await Promise.allSettled([
+        supabase.from('profiles').select('id, created_at').order('created_at', { ascending: false }),
+        supabase.from('projects').select('id, created_at, name').order('created_at', { ascending: false }),
+        supabase.from('jobs').select('id, status, type, created_at').order('created_at', { ascending: false }),
+        supabase.from('user_assets').select('id, file_type, file_size, created_at').order('created_at', { ascending: false })
+      ]);
+
+      return {
+        users: usersResult.status === 'fulfilled' ? usersResult.value.data || [] : [],
+        projects: projectsResult.status === 'fulfilled' ? projectsResult.value.data || [] : [],
+        jobs: jobsResult.status === 'fulfilled' ? jobsResult.value.data || [] : [],
+        assets: assetsResult.status === 'fulfilled' ? assetsResult.value.data || [] : []
+      };
+    },
+    refetchInterval: 30000 // Refresh every 30 seconds
+  });
+
+  const { data: systemHealth } = useQuery({
+    queryKey: ['system-health'],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('test-keys');
+        if (error) throw error;
+        return data.results;
+      } catch (error) {
+        return {
+          openai: { status: 'error', message: 'Connection failed' },
+          replicate: { status: 'error', message: 'Connection failed' }
+        };
+      }
+    },
+    refetchInterval: 60000 // Check every minute
+  });
+
+  // System maintenance actions
+  const clearFailedJobsMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('jobs')
+        .delete()
+        .eq('status', 'failed');
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+      toast.success('Failed jobs cleared successfully');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to clear jobs: ${error.message}`);
+    }
+  });
+
+  const restartPendingJobsMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('jobs')
+        .update({ status: 'pending', updated_at: new Date().toISOString() })
+        .eq('status', 'running')
+        .lt('updated_at', new Date(Date.now() - 10 * 60 * 1000).toISOString()); // Older than 10 minutes
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+      toast.success('Stuck jobs restarted successfully');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to restart jobs: ${error.message}`);
+    }
+  });
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'success':
+      case 'done':
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'running':
+      case 'processing':
+        return 'bg-blue-100 text-blue-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'failed':
+      case 'error':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  return (
+    <div className="flex-1 space-y-6 p-4 md:p-8">
+      <div>
+        <h2 className="text-3xl font-bold text-foreground">{t('admin')} Dashboard</h2>
+        <p className="text-muted-foreground">
+          Real-time system monitoring and management
+        </p>
+      </div>
+
+      <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="users">{t('users')}</TabsTrigger>
+          <TabsTrigger value="jobs">Jobs</TabsTrigger>
+          <TabsTrigger value="system">System</TabsTrigger>
+          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.users.length || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  +{stats?.users.filter(u => new Date(u.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length || 0} this week
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
+                <Database className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats?.projects.length || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  +{stats?.projects.filter(p => new Date(p.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)).length || 0} this week
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Processing Jobs</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats?.jobs.filter(j => j.status === 'running' || j.status === 'pending').length || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats?.jobs.filter(j => j.status === 'done').length || 0} completed today
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Storage Used</CardTitle>
+                <Server className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {Math.round((stats?.assets.reduce((acc, asset) => acc + (asset.file_size || 0), 0) || 0) / 1024 / 1024)} MB
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats?.assets.length || 0} assets
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Jobs</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {stats?.jobs.slice(0, 5).map((job) => (
+                    <div key={job.id} className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">{job.type}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(job.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge className={getStatusColor(job.status)}>
+                        {job.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>System Health</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Key className="h-4 w-4" />
+                      <span className="text-sm">OpenAI API</span>
+                    </div>
+                    {systemHealth?.openai?.status === 'success' ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-red-600" />
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Key className="h-4 w-4" />
+                      <span className="text-sm">Replicate API</span>
+                    </div>
+                    {systemHealth?.replicate?.status === 'success' ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-red-600" />
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>User Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {stats?.users.slice(0, 10).map((user) => (
+                  <div key={user.id} className="flex items-center justify-between border-b pb-2">
+                    <div>
+                      <p className="text-sm font-medium">{user.id}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Joined: {new Date(user.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Badge variant="secondary">Active</Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="jobs" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Job Queue Management</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {stats?.jobs.filter(j => j.status === 'pending').length || 0}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Pending</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {stats?.jobs.filter(j => j.status === 'running').length || 0}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Running</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">
+                      {stats?.jobs.filter(j => j.status === 'failed').length || 0}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Failed</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="system" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>System Configuration</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <h4 className="font-medium mb-2">API Keys Status</h4>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">OpenAI</span>
+                        <Badge className={getStatusColor(systemHealth?.openai?.status || 'error')}>
+                          {systemHealth?.openai?.status || 'Unknown'}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm">Replicate</span>
+                        <Badge className={getStatusColor(systemHealth?.replicate?.status || 'error')}>
+                          {systemHealth?.replicate?.status || 'Unknown'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="maintenance" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>System Maintenance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => clearFailedJobsMutation.mutate()}
+                    disabled={clearFailedJobsMutation.isPending}
+                    variant="destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Clear Failed Jobs
+                  </Button>
+                  <Button 
+                    onClick={() => restartPendingJobsMutation.mutate()}
+                    disabled={restartPendingJobsMutation.isPending}
+                    variant="outline"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Restart Stuck Jobs
+                  </Button>
+                  <Button 
+                    onClick={() => queryClient.invalidateQueries()}
+                    variant="outline"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh Data
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

@@ -31,15 +31,25 @@ export function TranslationTool({ projectId }: TranslationToolProps) {
 
   const loadProjectScript = async () => {
     try {
-      const { data: scripts } = await supabase
-        .from('scripts')
-        .select('content')
+      // First try to get script content from user_assets
+      const { data: assets } = await supabase
+        .from('user_assets')
+        .select('file_url, filename')
         .eq('project_id', projectId)
+        .eq('file_type', 'script')
+        .order('created_at', { ascending: false })
         .limit(1);
       
-      if (scripts && scripts[0]?.content) {
-        setScriptContent(scripts[0].content);
-        setText(scripts[0].content);
+      if (assets && assets[0]?.file_url) {
+        // Fetch the script content from the file URL
+        try {
+          const response = await fetch(assets[0].file_url);
+          const content = await response.text();
+          setScriptContent(content);
+          setText(content);
+        } catch (fetchError) {
+          console.error('Failed to fetch script content:', fetchError);
+        }
       }
     } catch (error) {
       console.error('Failed to load script:', error);

@@ -1,136 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.0';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-);
-
-const isValidUUID = (id?: string) =>
-  !!id && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
-
-// Helper to extract first JSON substring from a blob of text
-function extractJSON(text: string) {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start >= 0 && end > start) return text.slice(start, end + 1);
-  throw new Error("Could not extract JSON from LLM output");
-}
-
-async function validateInput(scriptContent: string) {
-  if (!scriptContent || scriptContent.trim().length < 10) {
-    return { valid: false, errors: ["Script content too short or empty"] };
-  }
-  return { valid: true };
-}
-
-async function runScriptBreakdown(scriptContent: string, projectId?: string) {
-  const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-  
-  if (!openAIApiKey) {
-    throw new Error('OPENAI_API_KEY not configured');
-  }
-
-  const prompt = `You are a Nollywood-savvy script breakdown assistant. Analyze this screenplay and return ONLY valid JSON following this exact schema:
-
-{
-  "scenes": [
-    {
-      "scene_id": "string",
-      "start_line": number,
-      "end_line": number,
-      "short_description": "string",
-      "location": "string",
-      "time_of_day": "string",
-      "characters": ["string"],
-      "props": ["string"]
-    }
-  ],
-  "suggested_shots": [
-    {
-      "scene_id": "string",
-      "shot_id": "string", 
-      "description": "string",
-      "camera_angle": "string",
-      "duration_est_seconds": number,
-      "priority": "string"
-    }
-  ],
-  "asset_list": [
-    {
-      "name": "string",
-      "type": "string",
-      "suggested_source": "string",
-      "estimated_quantity": number,
-      "notes": "string"
-    }
-  ]
-}
-
-Script text:
-${scriptContent}`;
-
-  const startTime = Date.now();
-  
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-5-2025-08-07',
-        messages: [
-          { role: 'system', content: 'You are a script breakdown assistant. Return only valid JSON.' },
-          { role: 'user', content: prompt }
-        ],
-        max_completion_tokens: 3000,
-      }),
-    });
-
-    const data = await response.json();
-    const responseTime = Date.now() - startTime;
-    
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'OpenAI API error');
-    }
-
-    const content = data.choices[0].message.content;
-    
-    // Try to extract and parse JSON
-    const jsonText = extractJSON(content);
-    const parsed = JSON.parse(jsonText);
-
-    return {
-      result: parsed,
-      metrics: {
-        success: true,
-        tokensUsed: data.usage?.total_tokens || 0,
-        responseTimeMs: responseTime,
-        provider: 'openai',
-        model: 'gpt-5-2025-08-07'
-      }
-    };
-  } catch (error) {
-    const responseTime = Date.now() - startTime;
-    throw {
-      error: error.message,
-      metrics: {
-        success: false,
-        errorType: error.message,
-        responseTimeMs: responseTime,
-        provider: 'openai',
-        model: 'gpt-5-2025-08-07'
-      }
-    };
-  }
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -138,6 +12,11 @@ serve(async (req) => {
   }
 
   try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
     // Get user from auth header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -158,97 +37,164 @@ serve(async (req) => {
       );
     }
 
-    const { script_content, project_id, depth = 'detailed' } = await req.json();
-    const projectContext = isValidUUID(project_id) ? project_id : null;
+    const { asset_id, file_url, filename, project_id } = await req.json();
 
-    // Validate input
-    const validation = await validateInput(script_content);
-    if (!validation.valid) {
-      return new Response(
-        JSON.stringify({ error: validation.errors }),
-        { status: 400, headers: corsHeaders }
-      );
-    }
+    console.log('Enhanced script breakdown request:', { asset_id, filename, project_id });
 
     // Create job record
     const { data: job, error: jobError } = await supabase
       .from('jobs')
       .insert({
         user_id: user.id,
-        project_id: projectContext,
+        project_id: project_id || null,
         type: 'script_breakdown',
         status: 'running',
-        payload: { script_content, depth },
-        input_data: { script_content, depth }
+        input_data: { asset_id, file_url, filename, file_type: 'script' }
       })
       .select()
       .single();
 
     if (jobError) {
-      console.error('Failed to create job:', jobError);
+      console.error('Job creation error:', jobError);
       return new Response(
         JSON.stringify({ error: 'Failed to create job' }),
         { status: 500, headers: corsHeaders }
       );
     }
 
+    // Fetch script content
+    let scriptContent = '';
     try {
-      // Run script breakdown
-      const breakdownResult = await runScriptBreakdown(script_content, projectContext);
-      
-      // Update job with results
+      const response = await fetch(file_url);
+      if (!response.ok) throw new Error('Failed to fetch script');
+      scriptContent = await response.text();
+    } catch (fetchError) {
+      console.error('Script fetch error:', fetchError);
       await supabase
+        .from('jobs')
+        .update({ 
+          status: 'failed', 
+          error_message: 'Failed to fetch script content',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', job.id);
+      
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch script content' }),
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
+    // Use OpenAI for script breakdown
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+    
+    if (!OPENAI_API_KEY) {
+      console.error('No OpenAI API key found');
+      await supabase
+        .from('jobs')
+        .update({ 
+          status: 'failed', 
+          error_message: 'OpenAI API key not configured',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', job.id);
+      
+      return new Response(
+        JSON.stringify({ error: 'AI service not configured' }),
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
+    try {
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a professional script breakdown assistant. Analyze the script and return a structured JSON breakdown with characters, scenes, props, and locations. Always return valid JSON.'
+            },
+            {
+              role: 'user',
+              content: `Please analyze this script and provide a detailed breakdown in JSON format with the following structure:
+              {
+                "characters": [{"name": "Character Name", "importance": "lead/supporting/background"}],
+                "scenes": [{"id": 1, "location": "Location", "description": "Scene description", "characters": ["character names"]}],
+                "props": ["prop1", "prop2"],
+                "locations": ["location1", "location2"]
+              }
+
+              Script content:
+              ${scriptContent.substring(0, 8000)}`
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 2000
+        })
+      });
+
+      if (!openaiResponse.ok) {
+        throw new Error(`OpenAI API error: ${openaiResponse.status}`);
+      }
+
+      const openaiData = await openaiResponse.json();
+      const breakdown = JSON.parse(openaiData.choices[0].message.content);
+
+      // Update job with results
+      const { error: updateError } = await supabase
         .from('jobs')
         .update({
           status: 'done',
-          result: breakdownResult.result,
-          output_data: breakdownResult.result,
-          completed_at: new Date().toISOString(),
-          processing_time_ms: breakdownResult.metrics.responseTimeMs,
-          tokens_used: breakdownResult.metrics.tokensUsed,
-          cost_estimate: breakdownResult.metrics.tokensUsed * 0.00002 // Rough estimate
+          output_data: breakdown,
+          ai_model: 'gpt-4o-mini',
+          ai_provider: 'openai',
+          completed_at: new Date().toISOString()
         })
         .eq('id', job.id);
 
-      // Create notification
-      try {
-        await supabase.from('notifications').insert({
-          user_id: user.id,
-          title: 'Script Breakdown Complete',
-          message: 'Your script breakdown has been completed successfully.',
-          type: 'job_completed'
-        });
-      } catch (notifError) {
-        console.error('Failed to create notification:', notifError);
+      if (updateError) {
+        console.error('Job update error:', updateError);
       }
 
-      return new Response(JSON.stringify({
-        ok: true,
-        jobId: job.id,
-        breakdown: breakdownResult.result,
-        metrics: breakdownResult.metrics
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      // Create notification
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: user.id,
+          title: 'Script Breakdown Complete',
+          message: `Breakdown for "${filename}" has been completed successfully`,
+          type: 'success'
+        });
 
-    } catch (error) {
-      console.error('Script breakdown error:', error);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          job_id: job.id,
+          breakdown
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } catch (aiError) {
+      console.error('AI processing error:', aiError);
       
-      // Update job with error
+      // Update job as failed
       await supabase
         .from('jobs')
-        .update({
-          status: 'error',
-          error: error.error || error.message,
-          processing_time_ms: error.metrics?.responseTimeMs
+        .update({ 
+          status: 'failed', 
+          error_message: aiError.message,
+          completed_at: new Date().toISOString()
         })
         .eq('id', job.id);
 
       return new Response(
-        JSON.stringify({ 
-          error: error.error || error.message,
-          jobId: job.id 
-        }),
+        JSON.stringify({ error: 'Failed to process script with AI' }),
         { status: 500, headers: corsHeaders }
       );
     }
@@ -256,7 +202,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in script-breakdown-enhanced function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal server error', details: error.message }),
       { status: 500, headers: corsHeaders }
     );
   }

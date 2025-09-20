@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import Admin from "./pages/Admin";
 import ProjectWorkspace from "./pages/ProjectWorkspace";
 // Removed legacy import page route
 import AIChat from "./pages/AIChat";
@@ -72,6 +73,7 @@ const App = () => (
                 <Route path="/vfx-animation" element={<VFXAnimation />} />
                 <Route path="/vfx-animation/:projectId" element={<VFXAnimation />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/admin" element={<Admin />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
