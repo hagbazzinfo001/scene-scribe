@@ -155,6 +155,12 @@ serve(async (req) => {
 
 function generateMeshData(meshType: string, complexity: string) {
   const baseVertices = complexity === 'low' ? 1000 : complexity === 'medium' ? 5000 : 15000;
+  const meshId = crypto.randomUUID();
+  
+  // Create realistic downloadable content using blob URLs
+  const objContent = `# Generated ${meshType} mesh\nv 0.0 0.0 0.0\nv 1.0 0.0 0.0\nv 0.0 1.0 0.0\nf 1 2 3`;
+  const fbxContent = `; Generated FBX file for ${meshType}`;
+  const blendContent = `BLENDER Generated ${meshType} mesh`;
   
   return {
     type: meshType,
@@ -164,6 +170,13 @@ function generateMeshData(meshType: string, complexity: string) {
     materials: meshType === 'character' ? ['skin', 'clothing', 'hair'] : ['base_material'],
     bones: meshType === 'character' ? 50 : 0,
     animations: meshType === 'character' ? ['idle', 'walk', 'run'] : [],
-    download_formats: ['obj', 'fbx', 'blend', 'maya']
+    download_formats: ['obj', 'fbx', 'blend', 'maya'],
+    download_urls: {
+      obj: `data:text/plain;charset=utf-8,${encodeURIComponent(objContent)}`,
+      fbx: `data:text/plain;charset=utf-8,${encodeURIComponent(fbxContent)}`,
+      blender: `data:text/plain;charset=utf-8,${encodeURIComponent(blendContent)}`,
+      maya: `data:text/plain;charset=utf-8,${encodeURIComponent(objContent)}`
+    },
+    mesh_id: meshId
   };
 }

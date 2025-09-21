@@ -39,7 +39,7 @@ export function BreakdownRunner({ projectId, onJobCreated }: BreakdownRunnerProp
     }
   };
 
-  // Run script breakdown
+  // Run script breakdown with background processing
   const runBreakdown = async () => {
     if (!selectedAsset || !user) {
       toast.error('Please select a script to analyze');
@@ -50,7 +50,7 @@ export function BreakdownRunner({ projectId, onJobCreated }: BreakdownRunnerProp
     try {
       const asset = availableAssets.find(a => a.id === selectedAsset);
       
-      // Call the script breakdown function
+      // Call the script breakdown function with background processing
       const { data, error } = await supabase.functions.invoke('script-breakdown-enhanced', {
         body: {
           asset_id: asset.id,
@@ -63,8 +63,47 @@ export function BreakdownRunner({ projectId, onJobCreated }: BreakdownRunnerProp
       if (error) throw error;
 
       if (data.job_id) {
-        toast.success('Script breakdown started successfully!');
+        toast.success('Script breakdown started successfully! Processing will continue even if you navigate away.');
         onJobCreated?.(data.job_id);
+        
+        // Start polling job status in background
+        const pollJobStatus = async () => {
+          const maxAttempts = 30; // 5 minutes max
+          let attempts = 0;
+          
+          const checkStatus = async () => {
+            if (attempts >= maxAttempts) return;
+            attempts++;
+            
+            try {
+              const { data: jobStatus } = await supabase
+                .from('jobs')
+                .select('status, output_data, error_message')
+                .eq('id', data.job_id)
+                .single();
+              
+              if (jobStatus?.status === 'done') {
+                toast.success('Script breakdown completed successfully!');
+                return;
+              } else if (jobStatus?.status === 'failed') {
+                toast.error(`Breakdown failed: ${jobStatus.error_message}`);
+                return;
+              }
+              
+              // Continue polling if still running
+              if (jobStatus?.status === 'running') {
+                setTimeout(checkStatus, 10000); // Check every 10 seconds
+              }
+            } catch (error) {
+              console.error('Status check error:', error);
+            }
+          };
+          
+          checkStatus();
+        };
+        
+        // Start background polling
+        pollJobStatus();
       }
     } catch (error: any) {
       console.error('Breakdown error:', error);
