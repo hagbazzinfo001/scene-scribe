@@ -56,7 +56,7 @@ export function BreakdownRunner({ projectId, onJobCreated }: BreakdownRunnerProp
           asset_id: asset.id,
           file_url: asset.file_url,
           filename: asset.filename,
-          project_id: projectId
+          project_id: projectId || null
         }
       });
 
@@ -117,6 +117,29 @@ export function BreakdownRunner({ projectId, onJobCreated }: BreakdownRunnerProp
   useEffect(() => {
     if (projectId) {
       loadAvailableAssets();
+    }
+  }, [projectId]);
+
+  // Alternative: load all script assets if no projectId
+  useEffect(() => {
+    if (!projectId) {
+      const loadAllScripts = async () => {
+        try {
+          const { data: assets } = await supabase
+            .from('user_assets')
+            .select('*')
+            .eq('file_type', 'script')
+            .order('created_at', { ascending: false });
+          
+          setAvailableAssets(assets || []);
+          if (assets && assets.length > 0 && !selectedAsset) {
+            setSelectedAsset(assets[0].id);
+          }
+        } catch (error) {
+          console.error('Failed to load all script assets:', error);
+        }
+      };
+      loadAllScripts();
     }
   }, [projectId]);
 

@@ -17,6 +17,7 @@ import { FileUploadZone } from '@/components/FileUploadZone';
 import { MediaPreview } from '@/components/MediaPreview';
 import { ImportAssetDropzone } from '@/components/ImportAssetDropzone';
 import { AssetLibrary } from '@/components/AssetLibrary';
+import { RotoTrackingResults } from '@/components/RotoTrackingResults';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,10 +26,12 @@ import { toast } from 'sonner';
 import { useParams } from 'react-router-dom';
 import { freeAIService } from '@/services/freeAIService';
 import { openSourceVFX } from '@/services/openSourceVFX';
+import { useTranslation } from 'react-i18next';
 
 export default function VFXAnimation() {
   const { projectId } = useParams();
   const { user } = useAuth();
+  const { t } = useTranslation();
   
   // [CORE_STATE] Main processing and file management states
   const [isProcessing, setIsProcessing] = useState(false);
@@ -475,44 +478,7 @@ export default function VFXAnimation() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Tracking Results</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {trackingResults ? (
-                  <div className="space-y-4">
-                    <div className="p-4 bg-muted rounded-lg">
-                      <h4 className="font-medium mb-2">Analysis Complete</h4>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        Scene: {trackingResults.metadata?.sceneDescription}
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>Frame Count: {trackingResults.metadata?.frameCount || 'N/A'}</div>
-                        <div>Resolution: {trackingResults.metadata?.resolution || 'N/A'}</div>
-                        <div>Duration: {trackingResults.metadata?.duration || 'N/A'}s</div>
-                        <div>Tracking Points: {trackingResults.trackingPoints?.length || 0}</div>
-                      </div>
-                    </div>
-                    
-                    {trackingResults.videoUrl && (
-                      <div>
-                        <Label>Processed Video with Tracking</Label>
-                        <MediaPreview url={trackingResults.videoUrl} type="video" />
-                        <Button variant="outline" size="sm" className="mt-2 w-full">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Tracking Data
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-center py-8">
-                    Upload a video and provide scene description to begin tracking analysis
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            <RotoTrackingResults results={trackingResults} />
           </div>
         </TabsContent>
 
