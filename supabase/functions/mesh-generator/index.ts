@@ -157,11 +157,6 @@ function generateMeshData(meshType: string, complexity: string) {
   const baseVertices = complexity === 'low' ? 1000 : complexity === 'medium' ? 5000 : 15000;
   const meshId = crypto.randomUUID();
   
-  // Create realistic downloadable content using blob URLs
-  const objContent = `# Generated ${meshType} mesh\nv 0.0 0.0 0.0\nv 1.0 0.0 0.0\nv 0.0 1.0 0.0\nf 1 2 3`;
-  const fbxContent = `; Generated FBX file for ${meshType}`;
-  const blendContent = `BLENDER Generated ${meshType} mesh`;
-  
   return {
     type: meshType,
     complexity,
@@ -171,12 +166,42 @@ function generateMeshData(meshType: string, complexity: string) {
     bones: meshType === 'character' ? 50 : 0,
     animations: meshType === 'character' ? ['idle', 'walk', 'run'] : [],
     download_formats: ['obj', 'fbx', 'blend', 'maya'],
-    download_urls: {
-      obj: `data:text/plain;charset=utf-8,${encodeURIComponent(objContent)}`,
-      fbx: `data:text/plain;charset=utf-8,${encodeURIComponent(fbxContent)}`,
-      blender: `data:text/plain;charset=utf-8,${encodeURIComponent(blendContent)}`,
-      maya: `data:text/plain;charset=utf-8,${encodeURIComponent(objContent)}`
-    },
     mesh_id: meshId
   };
+}
+
+function generateOBJContent(meshType: string, complexity: string): string {
+  const vertices = complexity === 'low' ? 8 : complexity === 'medium' ? 24 : 64;
+  let objContent = `# AI Generated ${meshType} Mesh\n`;
+  objContent += `# Complexity: ${complexity}\n`;
+  objContent += `# Generated: ${new Date().toISOString()}\n\n`;
+  
+  // Generate basic cube vertices
+  objContent += "# Vertices\n";
+  for (let i = 0; i < vertices; i++) {
+    const x = (Math.random() - 0.5) * 2;
+    const y = (Math.random() - 0.5) * 2;
+    const z = (Math.random() - 0.5) * 2;
+    objContent += `v ${x.toFixed(6)} ${y.toFixed(6)} ${z.toFixed(6)}\n`;
+  }
+  
+  // Generate texture coordinates
+  objContent += "\n# Texture Coordinates\n";
+  for (let i = 0; i < vertices / 2; i++) {
+    objContent += `vt ${Math.random().toFixed(6)} ${Math.random().toFixed(6)}\n`;
+  }
+  
+  // Generate normals
+  objContent += "\n# Normals\n";
+  for (let i = 0; i < vertices / 2; i++) {
+    objContent += `vn 0.0 1.0 0.0\n`;
+  }
+  
+  // Generate faces
+  objContent += "\n# Faces\n";
+  for (let i = 1; i < vertices - 2; i += 3) {
+    objContent += `f ${i} ${i + 1} ${i + 2}\n`;
+  }
+  
+  return objContent;
 }

@@ -424,10 +424,10 @@ export default function VFXAnimation() {
 
       <Tabs defaultValue="roto" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="roto">Roto Scoping</TabsTrigger>
-          <TabsTrigger value="mesh">Mesh Generator</TabsTrigger>
-          <TabsTrigger value="grading">Color Process</TabsTrigger>
-          <TabsTrigger value="assets">Asset Library</TabsTrigger>
+          <TabsTrigger value="roto">{t('roto_scoping')}</TabsTrigger>
+          <TabsTrigger value="mesh">{t('mesh_generator')}</TabsTrigger>
+          <TabsTrigger value="grading">{t('color_process')}</TabsTrigger>
+          <TabsTrigger value="assets">{t('asset_library')}</TabsTrigger>
         </TabsList>
 
         {/* Roto Scoping Tab */}
@@ -437,12 +437,12 @@ export default function VFXAnimation() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Camera className="h-5 w-5" />
-                  Roto Scoping Setup
+                  {t('roto_scoping')} Setup
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="scene-description">Scene Description</Label>
+                  <Label htmlFor="scene-description">{t('scene_description')}</Label>
                   <Textarea 
                     id="scene-description"
                     placeholder="Describe what to track (e.g., 'Track the actor's face', 'Follow the moving car')"
@@ -453,7 +453,7 @@ export default function VFXAnimation() {
                 </div>
                 
                 <div>
-                  <Label>Upload Video File</Label>
+                  <Label>{t('upload_video')}</Label>
                   <FileUploadZone
                     bucket="video-uploads"
                     acceptedFileTypes={['video']}

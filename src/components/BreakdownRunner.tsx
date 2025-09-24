@@ -42,17 +42,38 @@ export function BreakdownRunner({ projectId, onJobCreated }: BreakdownRunnerProp
   // Run script breakdown with background processing
   const runBreakdown = async () => {
     if (!selectedAsset || !user) {
-      toast.error('Please select a script to analyze');
+      toast.error(t('select_script'));
       return;
     }
 
     setIsRunning(true);
+    
     try {
       const asset = availableAssets.find(a => a.id === selectedAsset);
       
-      // Call the script breakdown function with background processing
-      const { data, error } = await supabase.functions.invoke('script-breakdown-enhanced', {
+      // Create job entry first
+      const { data: job, error: jobError } = await supabase
+        .from('jobs')
+        .insert({
+          user_id: user.id,
+          project_id: projectId || null,
+          type: 'script-breakdown',
+          status: 'pending',
+          input_data: {
+            asset_id: asset.id,
+            file_url: asset.file_url,
+            filename: asset.filename
+          }
+        })
+        .select()
+        .single();
+
+      if (jobError) throw jobError;
+
+      // Start processing with background execution
+      const processingPromise = supabase.functions.invoke('script-breakdown-enhanced', {
         body: {
+          job_id: job.id,
           asset_id: asset.id,
           file_url: asset.file_url,
           filename: asset.filename,
@@ -60,54 +81,46 @@ export function BreakdownRunner({ projectId, onJobCreated }: BreakdownRunnerProp
         }
       });
 
-      if (error) throw error;
-
-      if (data.job_id) {
-        toast.success('Script breakdown started successfully! Processing will continue even if you navigate away.');
-        onJobCreated?.(data.job_id);
-        
-        // Start polling job status in background
-        const pollJobStatus = async () => {
-          const maxAttempts = 30; // 5 minutes max
-          let attempts = 0;
-          
-          const checkStatus = async () => {
-            if (attempts >= maxAttempts) return;
-            attempts++;
+      toast.success(t('breakdown_started'));
+      onJobCreated?.(job.id);
+      
+      // Background status polling that continues even if user navigates away
+      const pollJobStatus = () => {
+        const intervalId = setInterval(async () => {
+          try {
+            const { data: jobStatus } = await supabase
+              .from('jobs')
+              .select('status, output_data, error_message')
+              .eq('id', job.id)
+              .single();
             
-            try {
-              const { data: jobStatus } = await supabase
-                .from('jobs')
-                .select('status, output_data, error_message')
-                .eq('id', data.job_id)
-                .single();
-              
-              if (jobStatus?.status === 'done') {
-                toast.success('Script breakdown completed successfully!');
-                return;
-              } else if (jobStatus?.status === 'failed') {
-                toast.error(`Breakdown failed: ${jobStatus.error_message}`);
-                return;
-              }
-              
-              // Continue polling if still running
-              if (jobStatus?.status === 'running') {
-                setTimeout(checkStatus, 10000); // Check every 10 seconds
-              }
-            } catch (error) {
-              console.error('Status check error:', error);
+            if (jobStatus?.status === 'done') {
+              toast.success(t('breakdown_completed'));
+              clearInterval(intervalId);
+            } else if (jobStatus?.status === 'failed') {
+              toast.error(`${t('breakdown_failed')}: ${jobStatus.error_message}`);
+              clearInterval(intervalId);
             }
-          };
-          
-          checkStatus();
-        };
-        
-        // Start background polling
-        pollJobStatus();
-      }
+          } catch (error) {
+            console.error('Status polling error:', error);
+          }
+        }, 5000); // Poll every 5 seconds
+
+        // Clean up after 10 minutes max
+        setTimeout(() => clearInterval(intervalId), 600000);
+      };
+      
+      // Start polling immediately
+      pollJobStatus();
+      
+      // Don't await processing - let it run in background
+      processingPromise.catch(error => {
+        console.error('Background processing error:', error);
+      });
+
     } catch (error: any) {
       console.error('Breakdown error:', error);
-      toast.error(`Breakdown failed: ${error.message}`);
+      toast.error(`${t('breakdown_failed')}: ${error.message}`);
     } finally {
       setIsRunning(false);
     }
@@ -149,9 +162,9 @@ export function BreakdownRunner({ projectId, onJobCreated }: BreakdownRunnerProp
         <CardContent className="pt-6">
           <div className="text-center py-8">
             <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No script files found.</p>
+            <p className="text-muted-foreground">{t('no_script_files')}</p>
             <p className="text-sm text-muted-foreground mt-2">
-              Upload a script file first to run breakdown analysis.
+              {t('upload_script_first')}
             </p>
           </div>
         </CardContent>
@@ -169,7 +182,7 @@ export function BreakdownRunner({ projectId, onJobCreated }: BreakdownRunnerProp
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <h4 className="font-medium mb-2">Available Scripts</h4>
+          <h4 className="font-medium mb-2">{t('available_scripts')}</h4>
           <div className="space-y-2">
             {availableAssets.map((asset) => (
               <div 
@@ -208,12 +221,12 @@ export function BreakdownRunner({ projectId, onJobCreated }: BreakdownRunnerProp
           {isRunning ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Analyzing Script...
+              {t('analyzing_script')}
             </>
           ) : (
             <>
               <Play className="h-4 w-4 mr-2" />
-              Run Script Breakdown
+              {t('run_script_breakdown')}
             </>
           )}
         </Button>
