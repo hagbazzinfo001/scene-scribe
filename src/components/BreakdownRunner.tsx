@@ -39,7 +39,7 @@ export function BreakdownRunner({ projectId, onJobCreated }: BreakdownRunnerProp
     }
   };
 
-  // Run script breakdown with background processing
+  // Run script breakdown with true background processing
   const runBreakdown = async () => {
     if (!selectedAsset || !user) {
       toast.error(t('select_script'));
@@ -51,7 +51,7 @@ export function BreakdownRunner({ projectId, onJobCreated }: BreakdownRunnerProp
     try {
       const asset = availableAssets.find(a => a.id === selectedAsset);
       
-      // Create job entry first
+      // Create job entry first  
       const { data: job, error: jobError } = await supabase
         .from('jobs')
         .insert({
@@ -70,24 +70,73 @@ export function BreakdownRunner({ projectId, onJobCreated }: BreakdownRunnerProp
 
       if (jobError) throw jobError;
 
-      // Start processing with background execution
-      const processingPromise = supabase.functions.invoke('script-breakdown-enhanced', {
+      // Start Edge Function processing with proper auth
+      const authToken = (await supabase.auth.getSession()).data.session?.access_token;
+      
+      if (!authToken) {
+        throw new Error('Authentication required for processing');
+      }
+
+      // Invoke the function but don't await it - true background processing
+      supabase.functions.invoke('script-breakdown-enhanced', {
         body: {
-          job_id: job.id,
           asset_id: asset.id,
           file_url: asset.file_url,
           filename: asset.filename,
           project_id: projectId || null
+        },
+        headers: {
+          Authorization: `Bearer ${authToken}`
         }
+      }).then(({ data, error }) => {
+        if (error) {
+          console.error('Background processing error:', error);
+          // Update job status on error
+          supabase
+            .from('jobs')
+            .update({ 
+              status: 'failed', 
+              error_message: error.message,
+              completed_at: new Date().toISOString()
+            })
+            .eq('id', job.id);
+        }
+      }).catch(error => {
+        console.error('Function invocation error:', error);
       });
 
       toast.success(t('breakdown_started'));
       onJobCreated?.(job.id);
       
-      // Background status polling that continues even if user navigates away
+      // Create persistent polling that survives page navigation
       const pollJobStatus = () => {
+        // Use a unique key for this polling session
+        const pollKey = `breakdown_poll_${job.id}`;
+        
+        // Store the job ID in localStorage for cross-tab persistence
+        localStorage.setItem(pollKey, JSON.stringify({
+          jobId: job.id,
+          startTime: Date.now(),
+          userId: user.id
+        }));
+        
         const intervalId = setInterval(async () => {
           try {
+            // Check if we should still be polling
+            const pollData = localStorage.getItem(pollKey);
+            if (!pollData) {
+              clearInterval(intervalId);
+              return;
+            }
+            
+            const { startTime } = JSON.parse(pollData);
+            // Stop polling after 15 minutes
+            if (Date.now() - startTime > 15 * 60 * 1000) {
+              localStorage.removeItem(pollKey);
+              clearInterval(intervalId);
+              return;
+            }
+            
             const { data: jobStatus } = await supabase
               .from('jobs')
               .select('status, output_data, error_message')
@@ -96,27 +145,26 @@ export function BreakdownRunner({ projectId, onJobCreated }: BreakdownRunnerProp
             
             if (jobStatus?.status === 'done') {
               toast.success(t('breakdown_completed'));
+              localStorage.removeItem(pollKey);
               clearInterval(intervalId);
+              
+              // Refresh any breakdown displays
+              window.dispatchEvent(new CustomEvent('breakdown-completed', { 
+                detail: { jobId: job.id, output: jobStatus.output_data } 
+              }));
             } else if (jobStatus?.status === 'failed') {
               toast.error(`${t('breakdown_failed')}: ${jobStatus.error_message}`);
+              localStorage.removeItem(pollKey);
               clearInterval(intervalId);
             }
           } catch (error) {
             console.error('Status polling error:', error);
           }
-        }, 5000); // Poll every 5 seconds
-
-        // Clean up after 10 minutes max
-        setTimeout(() => clearInterval(intervalId), 600000);
+        }, 3000); // Poll every 3 seconds for better responsiveness
       };
       
-      // Start polling immediately
+      // Start persistent polling
       pollJobStatus();
-      
-      // Don't await processing - let it run in background
-      processingPromise.catch(error => {
-        console.error('Background processing error:', error);
-      });
 
     } catch (error: any) {
       console.error('Breakdown error:', error);

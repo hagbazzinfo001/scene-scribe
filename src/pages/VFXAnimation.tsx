@@ -233,10 +233,10 @@ export default function VFXAnimation() {
     }
   };
 
-  // [MESH_GENERATOR] 3D Mesh Generation with Replicate
+  // [MESH_GENERATOR] 3D Mesh Generation with working download
   const handleMeshGeneration = async () => {
     if (!meshType || !complexity) {
-      toast.error('Please select mesh type and complexity');
+      toast.error(t('generate_mesh_params_required') || 'Please select mesh type and complexity');
       return;
     }
 
@@ -284,32 +284,56 @@ export default function VFXAnimation() {
         });
       }
       
-      toast.success('Mesh generation completed!');
+      toast.success(t('generation_complete') || 'Mesh generation completed!');
       
       // Create notification for completion
       if (user) {
         await supabase.from('notifications').insert({
           user_id: user.id,
-          title: 'Mesh Generation Complete',
+          title: t('mesh_generation_complete') || 'Mesh Generation Complete',
           message: `${meshType} mesh with ${complexity} complexity has been generated successfully.`,
           type: 'success'
         });
       }
     } catch (error: any) {
       console.error('Mesh generation error:', error);
-      toast.error(`Failed to generate mesh: ${error.message}`);
+      toast.error(`${t('generation_failed') || 'Failed to generate mesh'}: ${error.message}`);
       
       // Create notification for error
       if (user) {
         await supabase.from('notifications').insert({
           user_id: user.id,
-          title: 'Mesh Generation Failed',
+          title: t('mesh_generation_failed') || 'Mesh Generation Failed',
           message: `Mesh generation failed: ${error.message}`,
           type: 'error'
         });
       }
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  // Helper function for mesh download
+  const downloadMeshFile = (meshData: any) => {
+    if (!meshData || !meshData.download_url) {
+      toast.error(t('no_download_available') || 'No download available');
+      return;
+    }
+
+    try {
+      // Create a proper download link
+      const link = document.createElement('a');
+      link.href = meshData.download_url;
+      link.download = `mesh_${meshType}_${complexity}_${Date.now()}.obj`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success(t('download_started') || 'Download started');
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error(t('download_failed') || 'Download failed');
     }
   };
 
