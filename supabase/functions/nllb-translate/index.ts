@@ -122,7 +122,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in nllb-translate function:', error)
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       translatedText: "Translation service temporarily unavailable. Please try again later."
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

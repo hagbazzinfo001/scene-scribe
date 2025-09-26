@@ -331,14 +331,14 @@ serve(async (req) => {
         .from('jobs')
         .update({ 
           status: 'failed',
-          error_message: processingError.message
+          error_message: processingError instanceof Error ? processingError.message : String(processingError)
         })
         .eq('id', jobId);
 
       await supabase.from('dev_logs').insert({
         job_id: jobId,
         level: 'error',
-        message: `Processing failed: ${processingError.message}`
+        message: `Processing failed: ${processingError instanceof Error ? processingError.message : String(processingError)}`
       });
 
       throw processingError;
@@ -347,7 +347,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in super-breakdown-worker:', error);
     return new Response(
-      JSON.stringify({ error: 'Worker processing failed', details: error.message }),
+      JSON.stringify({ error: 'Worker processing failed', details: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: corsHeaders }
     );
   }

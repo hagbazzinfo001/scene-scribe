@@ -143,7 +143,7 @@ serve(async (req) => {
         .from('jobs')
         .update({
           status: 'error',
-          error_message: processError.message
+          error_message: processError instanceof Error ? processError.message : String(processError)
         })
         .eq('id', job.id)
 
@@ -151,7 +151,7 @@ serve(async (req) => {
     }
   } catch (error) {
     console.error('Error in simple-audio-clean function:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })

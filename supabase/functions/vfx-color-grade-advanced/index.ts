@@ -163,7 +163,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in vfx-color-grade-advanced function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: corsHeaders }
     );
   }

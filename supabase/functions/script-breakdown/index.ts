@@ -184,12 +184,12 @@ Focus on practical Nollywood production elements.`;
       
       await supabase.from('jobs').update({
         status: 'error',
-        error: error.message
+        error: error instanceof Error ? error.message : String(error)
       }).eq('id', job.id);
 
       return new Response(JSON.stringify({
         error: 'Script breakdown failed',
-        details: error.message
+        details: error instanceof Error ? error.message : String(error)
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

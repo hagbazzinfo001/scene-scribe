@@ -169,7 +169,7 @@ serve(async (req) => {
     console.error('Error in script-breakdown-free function:', error);
     return new Response(JSON.stringify({
       error: 'Script breakdown analysis failed',
-      details: error.message
+      details: error instanceof Error ? error.message : String(error)
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

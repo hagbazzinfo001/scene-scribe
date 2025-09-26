@@ -205,6 +205,12 @@ serve(async (req) => {
       if (!completed) {
         throw new Error('Processing timeout - job is still running in background');
       }
+      
+      // This should never be reached due to the error thrown above
+      return new Response(
+        JSON.stringify({ error: 'Unexpected code path' }),
+        { status: 500, headers: corsHeaders }
+      );
 
     } catch (error) {
       console.error('ROTO processing error:', error);
@@ -214,14 +220,14 @@ serve(async (req) => {
         .from('jobs')
         .update({
           status: 'error',
-          error_message: error.message
+          error_message: error instanceof Error ? error.message : String(error)
         })
         .eq('id', job.id);
 
       return new Response(
         JSON.stringify({ 
           error: 'ROTO processing failed', 
-          details: error.message,
+          details: error instanceof Error ? error.message : String(error),
           job_id: job.id
         }),
         { status: 500, headers: corsHeaders }
@@ -231,7 +237,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in vfx-roto function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: corsHeaders }
     );
   }

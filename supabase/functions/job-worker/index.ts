@@ -61,7 +61,7 @@ async function processJob(job: any) {
       .from('jobs')
       .update({ 
         status: 'failed', 
-        error_message: error.message,
+        error_message: error instanceof Error ? error.message : String(error),
         updated_at: new Date().toISOString()
       })
       .eq('id', job.id);
@@ -255,7 +255,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Job worker error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

@@ -69,7 +69,7 @@ async function validateInput(fileUrl: string) {
     
     return { valid: true };
   } catch (error) {
-    return { valid: false, errors: [`File validation failed: ${error.message}`] };
+    return { valid: false, errors: [`File validation failed: ${error instanceof Error ? error.message : String(error)}`] };
   }
 }
 
@@ -274,13 +274,13 @@ serve(async (req) => {
         .from('jobs')
         .update({
           status: 'error',
-          error: error.message
+          error: error instanceof Error ? error.message : String(error)
         })
         .eq('id', job.id);
 
       return new Response(
         JSON.stringify({ 
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
           jobId: job.id 
         }),
         { status: 500, headers: corsHeaders }

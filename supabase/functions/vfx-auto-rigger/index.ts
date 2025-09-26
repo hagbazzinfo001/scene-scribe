@@ -193,14 +193,14 @@ serve(async (req) => {
         .from('jobs')
         .update({
           status: 'error',
-          error_message: error.message
+          error_message: error instanceof Error ? error.message : String(error)
         })
         .eq('id', job.id);
 
       return new Response(
         JSON.stringify({ 
           error: 'Auto-rigging failed', 
-          details: error.message,
+          details: error instanceof Error ? error.message : String(error),
           job_id: job.id
         }),
         { status: 500, headers: corsHeaders }
@@ -210,7 +210,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in vfx-auto-rigger function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: corsHeaders }
     );
   }

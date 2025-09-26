@@ -133,7 +133,7 @@ serve(async (req) => {
 
       } catch (translationError) {
         console.error(`Translation failed for ${targetLang}:`, translationError);
-        translations[targetLang] = `Translation failed: ${translationError.message}`;
+        translations[targetLang] = `Translation failed: ${translationError instanceof Error ? translationError.message : String(translationError)}`;
       }
     }
 
@@ -152,7 +152,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in breakdown-translate function:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       fallbackMessage: "Translation service temporarily unavailable. Please try again later."
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

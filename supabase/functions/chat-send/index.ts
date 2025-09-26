@@ -107,7 +107,7 @@ async function callAI(message: string, projectContext?: string) {
       response: "Sorry — I couldn't reach the AI service. Try again later.",
       metrics: {
         success: false,
-        errorType: error.message,
+        errorType: error instanceof Error ? error.message : String(error),
         responseTimeMs: responseTime,
         provider: 'openai',
         model: 'gpt-4o-mini'

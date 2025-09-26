@@ -53,7 +53,7 @@ serve(async (req) => {
     const CREDIT_COST = 25; // credits per mesh generation
     const { data: profile } = await supabase
       .from('profiles')
-      .select('credits_remaining')
+      .select('credits_remaining, credits_used')
       .eq('id', owner_id)
       .single();
 
@@ -142,7 +142,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in meshify-enqueue function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: 'Internal server error', details: error instanceof Error ? error.message : String(error) }),
       { status: 500, headers: corsHeaders }
     );
   }

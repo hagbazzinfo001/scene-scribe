@@ -149,7 +149,7 @@ ${scriptContent}`;
   } catch (error) {
     console.error('Error in script-analyzer function:', error);
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       success: false 
     }), {
       status: 500,

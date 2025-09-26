@@ -25,7 +25,7 @@ serve(async (req) => {
           statusCode: replicateResponse.status
         };
       } catch (err) {
-        testResults.replicate = { status: 'error', error: err.message };
+        testResults.replicate = { status: 'error', error: err instanceof Error ? err.message : String(err) };
       }
     } else {
       testResults.replicate = { status: 'missing', error: 'REPLICATE_API_KEY not set' };
@@ -43,7 +43,7 @@ serve(async (req) => {
           statusCode: openaiResponse.status
         };
       } catch (err) {
-        testResults.openai = { status: 'error', error: err.message };
+        testResults.openai = { status: 'error', error: err instanceof Error ? err.message : String(err) };
       }
     } else {
       testResults.openai = { status: 'missing', error: 'OPENAI_API_KEY not set' };
@@ -71,7 +71,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Test keys error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

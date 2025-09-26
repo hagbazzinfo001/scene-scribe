@@ -156,7 +156,7 @@ Provide practical, actionable advice tailored to the Nigerian/African film indus
   } catch (error) {
     console.error('Error in llama-chat function:', error)
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: error instanceof Error ? error.message : String(error),
       response: "I apologize, but I'm currently experiencing technical difficulties. Please try again in a moment. In the meantime, feel free to ask me about script breakdown, production planning, or any other Nollywood production questions!"
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
