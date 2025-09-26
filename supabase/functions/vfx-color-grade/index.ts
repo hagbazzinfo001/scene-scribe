@@ -75,7 +75,10 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in vfx-color-grade function:', error);
     return new Response(
-      JSON.stringify({ error: 'Color grading failed', details: error.message }),
+      JSON.stringify({ 
+        error: 'Color grading failed', 
+        details: error instanceof Error ? error.message : 'Unknown error occurred'
+      }),
       { status: 500, headers: corsHeaders }
     );
   }

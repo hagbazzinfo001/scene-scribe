@@ -54,7 +54,7 @@ serve(async (req) => {
     })
   } catch (error) {
     console.error('Error in auto-rigger function:', error)
-    return new Response(JSON.stringify({ error: error.message }), {
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
     })
@@ -76,10 +76,10 @@ function generateRigPlan(characterType: string, rigComplexity: string) {
     vehicle: ['Door_FL', 'Door_FR', 'Hood', 'Trunk']
   }
 
-  let bones = [...(baseBones[characterType] || baseBones.humanoid)]
+  let bones = [...(baseBones[characterType as keyof typeof baseBones] || baseBones.humanoid)]
   
   if (rigComplexity !== 'simple') {
-    bones = [...bones, ...(limbBones[characterType] || limbBones.humanoid)]
+    bones = [...bones, ...(limbBones[characterType as keyof typeof limbBones] || limbBones.humanoid)]
   }
 
   if (rigComplexity === 'advanced') {

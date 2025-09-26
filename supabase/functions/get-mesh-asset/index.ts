@@ -17,7 +17,6 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Get user from auth header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -38,60 +37,54 @@ serve(async (req) => {
     }
 
     const url = new URL(req.url);
-    const asset_id = url.searchParams.get('asset_id');
+    const assetId = url.pathname.split('/').pop();
 
-    if (!asset_id) {
+    if (!assetId) {
       return new Response(
-        JSON.stringify({ error: 'asset_id parameter is required' }),
+        JSON.stringify({ error: 'Asset ID is required' }),
         { status: 400, headers: corsHeaders }
       );
     }
 
-    // Get mesh asset (RLS will ensure user can only access their own assets)
+    // Get mesh asset
     const { data: asset, error: assetError } = await supabase
       .from('mesh_assets')
       .select('*')
-      .eq('id', asset_id)
+      .eq('id', assetId)
+      .eq('owner_id', user.id)
       .single();
 
-    if (assetError) {
-      console.error('Asset fetch error:', assetError);
+    if (assetError || !asset) {
       return new Response(
-        JSON.stringify({ error: 'Asset not found or access denied' }),
+        JSON.stringify({ error: 'Asset not found' }),
         { status: 404, headers: corsHeaders }
       );
     }
 
-    // Return asset info (with signed download URL if completed)
-    let response = { asset };
+    let response: any = { asset };
 
-    if (asset.status === 'done' && asset.output_path) {
-      try {
-        // Create signed URL for download (valid for 5 minutes)
-        const { data: signedUrlData, error: urlError } = await supabase.storage
-          .from('user_assets')
-          .createSignedUrl(asset.output_path, 300);
+    // Get signed download URL if asset is completed
+    if (asset.status === 'completed' && asset.output_path) {
+      const { data: signedUrlData, error: signedError } = await supabase.storage
+        .from('outputs')
+        .createSignedUrl(asset.output_path, 3600); // 1 hour expiry
 
-        if (urlError) {
-          console.error('Signed URL error:', urlError);
-        } else {
-          response.signed_download = signedUrlData.signedUrl;
-        }
-      } catch (urlCreateError) {
-        console.error('Error creating signed URL:', urlCreateError);
-        // Don't fail the request if signed URL creation fails
+      if (!signedError && signedUrlData) {
+        (response as any).signed_download = signedUrlData.signedUrl;
       }
     }
 
-    return new Response(
-      JSON.stringify(response),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify(response), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
 
   } catch (error) {
     console.error('Error in get-mesh-asset function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error instanceof Error ? error.message : String(error)
+      }),
       { status: 500, headers: corsHeaders }
     );
   }

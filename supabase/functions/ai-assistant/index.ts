@@ -145,7 +145,7 @@ Please provide helpful, specific advice for this Nollywood film production. If t
     console.error('Error in ai-assistant function:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'An error occurred while processing your request'
+        error: error instanceof Error ? error.message : 'An error occurred while processing your request'
       }), 
       {
         status: 500,

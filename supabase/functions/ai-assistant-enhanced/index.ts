@@ -164,7 +164,7 @@ Keep responses practical, specific, and actionable for film production teams.`;
     console.error('Error in ai-assistant-enhanced function:', error);
     
     return new Response(JSON.stringify({ 
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
       message: 'I apologize, but I encountered an error processing your request. Please try again or check that the OpenAI API key is properly configured.'
     }), {
       status: 500,
