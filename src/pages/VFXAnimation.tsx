@@ -331,7 +331,6 @@ export default function VFXAnimation() {
         {/* Asset Library Tab */}
         <TabsContent value="assets">
           <AssetLibrary 
-            onAssetUploaded={() => {}}
             projectId={projectId}
           />
         </TabsContent>
