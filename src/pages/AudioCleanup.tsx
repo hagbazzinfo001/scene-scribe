@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, Mic, Volume2, Download, Wand2, Settings, Play, Pause, AudioLines } from 'lucide-react';
+import { Upload, Mic, Volume2, Download, Wand2, Settings, Play, Pause, AudioLines, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,48 +87,69 @@ export default function AudioCleanup() {
 
     setIsProcessing(true);
     try {
-      // Upload audio file to storage with proper error handling
+      // Upload audio file to storage
       const audioUrl = await uploadFile(audioFile, 'audio-uploads');
       if (!audioUrl) {
-        throw new Error('Failed to upload audio file - please check your connection and try again');
+        throw new Error('Failed to upload audio file');
       }
 
       console.log('Uploaded audio URL:', audioUrl);
 
-      // Call simple audio cleanup function
-      const authToken = (await supabase.auth.getSession()).data.session?.access_token;
-      if (!authToken) {
+      // Create job for audio processing
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         throw new Error('Authentication required');
       }
 
-      const { data, error } = await supabase.functions.invoke('simple-audio-clean', {
-        body: {
-          audioUrl,
-          projectId: '',
-          preset: 'voice_enhance'
-        },
-        headers: {
-          Authorization: `Bearer ${authToken}`
+      const { data: job, error: jobError } = await supabase
+        .from('jobs')
+        .insert({
+          user_id: user.id,
+          type: 'audio-clean',
+          status: 'pending',
+          input_data: {
+            file_url: audioUrl,
+            noise_reduction: noiseReduction[0],
+            voice_enhancement: voiceEnhancement[0],
+            preset: processingMode
+          }
+        })
+        .select()
+        .single();
+
+      if (jobError) throw jobError;
+
+      toast.success('Job queued! Processing will continue in background...');
+
+      // Poll for job completion
+      const pollJob = async () => {
+        const { data: jobData } = await supabase
+          .from('jobs')
+          .select('*')
+          .eq('id', job.id)
+          .single();
+
+        if (jobData?.status === 'done') {
+          const outputData = jobData.output_data as any;
+          if (outputData?.output_url) {
+            setProcessedAudioUrl(outputData.output_url);
+            toast.success('Audio processing completed!');
+            setIsProcessing(false);
+          }
+        } else if (jobData?.status === 'failed') {
+          toast.error(`Processing failed: ${jobData.error_message || 'Unknown error'}`);
+          setIsProcessing(false);
+        } else {
+          // Still processing, check again in 3 seconds
+          setTimeout(pollJob, 3000);
         }
-      });
+      };
 
-      if (error) {
-        throw error;
-      }
-
-      console.log('Audio processing result:', data);
-
-      if (data?.success && data?.outputUrl) {
-        setProcessedAudioUrl(data.outputUrl);
-        toast.success('Audio processing completed!');
-      } else {
-        throw new Error('No processed audio returned');
-      }
+      pollJob();
 
     } catch (error: any) {
       console.error('Audio processing error:', error);
       toast.error(`Processing failed: ${error.message}`);
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -423,7 +444,14 @@ export default function AudioCleanup() {
                 className="w-full"
                 size="lg"
               >
-                {isProcessing ? 'Processing...' : 'Clean Audio'}
+                {isProcessing ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  'Clean Audio'
+                )}
               </Button>
 
               {isProcessing && (
