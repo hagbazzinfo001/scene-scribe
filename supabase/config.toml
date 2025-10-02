@@ -73,3 +73,6 @@ verify_jwt = true
 
 [functions.breakdown-translate]
 verify_jwt = true
+
+[functions.job-worker]
+verify_jwt = false

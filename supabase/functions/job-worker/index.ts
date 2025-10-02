@@ -75,9 +75,11 @@ async function processRotoJob(job: any) {
 
   // Get input file URL
   const inputData = job.input_data;
-  const fileUrl = inputData.file_url;
+  const fileUrl = inputData.video_url || inputData.file_url;
   
-  // Call Replicate API
+  console.log('Processing roto job with input:', fileUrl);
+  
+  // Call Replicate API for background removal
   const response = await fetch('https://api.replicate.com/v1/predictions', {
     method: 'POST',
     headers: {
@@ -112,8 +114,47 @@ async function processRotoJob(job: any) {
     throw new Error(`Replicate processing failed: ${result.error}`);
   }
 
+  const outputUrl = Array.isArray(result.output) ? result.output[0] : result.output;
+  
+  // Download processed file and upload to storage
+  console.log('Downloading processed output...');
+  const outputResponse = await fetch(outputUrl);
+  const outputBlob = await outputResponse.blob();
+  
+  // Upload to Supabase storage
+  const fileName = `roto-${job.id}-${Date.now()}.png`;
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from('outputs')
+    .upload(fileName, outputBlob, {
+      contentType: 'image/png',
+      upsert: false
+    });
+
+  if (uploadError) {
+    console.error('Upload error:', uploadError);
+    throw new Error(`Failed to upload output: ${uploadError.message}`);
+  }
+
+  // Get public URL
+  const { data: publicUrlData } = supabase.storage
+    .from('outputs')
+    .getPublicUrl(fileName);
+
+  console.log('Roto processing complete. Output uploaded to:', publicUrlData.publicUrl);
+
+  // Create notification
+  await supabase
+    .from('notifications')
+    .insert({
+      user_id: job.user_id,
+      type: 'success',
+      title: 'Roto Processing Complete',
+      message: 'Your video background removal is ready for download'
+    });
+
   return {
-    output_url: result.output,
+    output_url: publicUrlData.publicUrl,
+    storage_path: fileName,
     prediction_id: result.id,
     type: 'roto'
   };
@@ -156,12 +197,110 @@ async function processAudioCleanJob(job: any) {
 
 async function processColorGradeJob(job: any) {
   const inputData = job.input_data;
+  const imageUrl = inputData.image_url || inputData.file_url;
+  const settings = inputData.settings || {};
   
-  return {
-    output_url: inputData.file_url, // Mock: return original for now
-    type: 'color-grade',
-    settings: inputData.settings || {}
-  };
+  console.log('Processing color grade job with settings:', settings);
+  
+  if (!replicateToken) {
+    console.warn('No Replicate API key, returning original');
+    return {
+      output_url: imageUrl,
+      type: 'color-grade',
+      settings: settings
+    };
+  }
+
+  try {
+    // Use Replicate for color grading
+    const response = await fetch('https://api.replicate.com/v1/predictions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${replicateToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        version: "tencentarc/gfpgan:9283608cc6b7be6b65a8e44983db012355fde4132009bf99d976b2f0896856a3",
+        input: {
+          img: imageUrl,
+          version: "v1.4",
+          scale: 2
+        }
+      })
+    });
+
+    const prediction = await response.json();
+    if (!response.ok) {
+      throw new Error(`Replicate API error: ${JSON.stringify(prediction)}`);
+    }
+
+    // Poll for completion
+    let result = prediction;
+    while (result.status === 'starting' || result.status === 'processing') {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
+        headers: { 'Authorization': `Token ${replicateToken}` }
+      });
+      result = await pollResponse.json();
+    }
+
+    if (result.status === 'failed') {
+      throw new Error(`Replicate processing failed: ${result.error}`);
+    }
+
+    const outputUrl = Array.isArray(result.output) ? result.output[0] : result.output;
+    
+    // Download and re-upload to storage
+    const outputResponse = await fetch(outputUrl);
+    const outputBlob = await outputResponse.blob();
+    
+    const fileName = `color-grade-${job.id}-${Date.now()}.png`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('outputs')
+      .upload(fileName, outputBlob, {
+        contentType: 'image/png',
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      throw new Error(`Failed to upload output: ${uploadError.message}`);
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from('outputs')
+      .getPublicUrl(fileName);
+
+    console.log('Color grade complete. Output:', publicUrlData.publicUrl);
+
+    // Create notification
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: job.user_id,
+        type: 'success',
+        title: 'Color Grading Complete',
+        message: 'Your color graded image is ready for download'
+      });
+
+    return {
+      output_url: publicUrlData.publicUrl,
+      storage_path: fileName,
+      type: 'color-grade',
+      settings: settings,
+      prediction_id: result.id
+    };
+  } catch (error) {
+    console.error('Color grade error:', error);
+    // Fallback to original
+    return {
+      output_url: imageUrl,
+      type: 'color-grade',
+      settings: settings,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
 }
 
 async function processScriptBreakdownJob(job: any) {

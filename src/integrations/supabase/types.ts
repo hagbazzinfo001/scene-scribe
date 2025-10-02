@@ -830,6 +830,10 @@ export type Database = {
         Args: { asset_id: string }
         Returns: Json
       }
+      trigger_job_worker: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       user_can_access_project: {
         Args: { p_project_id: string }
         Returns: boolean

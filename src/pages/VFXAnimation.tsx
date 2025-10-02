@@ -29,12 +29,17 @@ import { freeAIService } from '@/services/freeAIService';
 import { openSourceVFX } from '@/services/openSourceVFX';
 import { useTranslation } from 'react-i18next';
 import { useBackgroundProcessing } from '@/hooks/useBackgroundProcessing';
+import { useJobStatus } from '@/hooks/useJobStatus';
 
 export default function VFXAnimation() {
   const { projectId } = useParams();
   const { user } = useAuth();
   const { t } = useTranslation();
   const { startMonitoring } = useBackgroundProcessing();
+  
+  // Job status tracking
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const { job: currentJob, isPolling } = useJobStatus(currentJobId);
   
   // [CORE_STATE] Main processing and file management states
   const [isProcessing, setIsProcessing] = useState(false);
@@ -82,11 +87,12 @@ export default function VFXAnimation() {
       if (error) throw error;
       
       if (data.job_id) {
+        setCurrentJobId(data.job_id);
         startMonitoring(data.job_id, 'Roto/Track');
       }
       
       setTrackingResults(data);
-      toast.success('Roto/Track analysis started!');
+      toast.success('Roto/Track processing started! Job running in background...');
     } catch (error: any) {
       toast.error(`Failed to process video: ${error.message}`);
     } finally {
@@ -180,6 +186,37 @@ export default function VFXAnimation() {
                 <CardTitle>Roto Scoping Setup</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Job Status Display */}
+                {isPolling && currentJob && currentJob.type === 'roto' && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                      <span className="font-medium text-blue-900">
+                        Processing: Roto/Tracking
+                      </span>
+                    </div>
+                    <p className="text-sm text-blue-700 mt-1">
+                      Status: {currentJob.status} - Job running in background
+                    </p>
+                  </div>
+                )}
+                
+                {currentJob?.status === 'done' && currentJob.type === 'roto_tracking' && currentJob.output_data && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-medium text-green-900">✓ Processing Complete</span>
+                    </div>
+                    {currentJob.output_data.processed_video_url && (
+                      <Button asChild className="w-full">
+                        <a href={currentJob.output_data.processed_video_url} download target="_blank" rel="noopener noreferrer">
+                          <Download className="h-4 w-4 mr-2" />
+                          Download Processed Video
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <Label>Scene Description</Label>
                   <Textarea 
@@ -281,6 +318,40 @@ export default function VFXAnimation() {
 
         {/* Color Grading Tab */}
         <TabsContent value="grading" className="space-y-6">
+          {/* Job Status Display for Color Grading */}
+          {isPolling && currentJob && currentJob.type === 'color-grade' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                <span className="font-medium text-blue-900">
+                  Processing: Color Grading
+                </span>
+              </div>
+              <p className="text-sm text-blue-700 mt-1">
+                Status: {currentJob.status} - Job running in background
+              </p>
+            </div>
+          )}
+          
+          {currentJob?.status === 'done' && currentJob.type === 'color-grade' && currentJob.output_data && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="font-medium text-green-900">✓ Color Grading Complete</span>
+              </div>
+              {currentJob.output_data.output_url && (
+                <>
+                  <MediaPreview url={currentJob.output_data.output_url} type="image" />
+                  <Button asChild className="w-full mt-3">
+                    <a href={currentJob.output_data.output_url} download target="_blank" rel="noopener noreferrer">
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Graded Image
+                    </a>
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+          
           <div className="space-y-6">
             <Card>
               <CardHeader>
