@@ -76,3 +76,6 @@ verify_jwt = true
 
 [functions.job-worker]
 verify_jwt = false
+
+[functions.mesh-generator]
+verify_jwt = true

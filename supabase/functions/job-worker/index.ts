@@ -37,6 +37,13 @@ async function processJob(job: any) {
       case 'script-breakdown':
         result = await processScriptBreakdownJob(job);
         break;
+      case 'super_breakdown':
+        result = await processScriptBreakdownJob(job);
+        break;
+      case 'mesh':
+      case 'mesh-generation':
+        result = await processMeshJob(job);
+        break;
       default:
         throw new Error(`Unknown job type: ${job.type}`);
     }
@@ -384,6 +391,118 @@ async function processScriptBreakdownJob(job: any) {
     return {
       breakdown: { raw_response: breakdown },
       type: 'script-breakdown'
+    };
+  }
+}
+
+async function processMeshJob(job: any) {
+  console.log('Processing mesh generation job:', job.id);
+  
+  const inputData = job.input_data;
+  const imageUrl = inputData.image_url;
+  const name = inputData.name || 'mesh-model';
+  
+  if (!imageUrl) {
+    throw new Error('No input image URL provided');
+  }
+  
+  if (!replicateToken) {
+    console.warn('No Replicate API key, returning placeholder');
+    return {
+      output_url: imageUrl,
+      type: 'mesh',
+      note: 'Mesh generation requires Replicate API key'
+    };
+  }
+
+  try {
+    // Use Replicate for 3D mesh generation
+    // Example: shap-e or triposr models
+    const response = await fetch('https://api.replicate.com/v1/predictions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${replicateToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        version: "a4ed97b3a93c72d5c97e63ae8a24bc2d5cbb96f2be1bf99c0db12b5b19f77b5f", // TripoSR
+        input: {
+          image_url: imageUrl,
+          foreground_ratio: 0.85,
+          mc_resolution: 256
+        }
+      })
+    });
+
+    const prediction = await response.json();
+    if (!response.ok) {
+      throw new Error(`Replicate API error: ${JSON.stringify(prediction)}`);
+    }
+
+    // Poll for completion
+    let result = prediction;
+    while (result.status === 'starting' || result.status === 'processing') {
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
+        headers: { 'Authorization': `Token ${replicateToken}` }
+      });
+      result = await pollResponse.json();
+    }
+
+    if (result.status === 'failed') {
+      throw new Error(`Mesh generation failed: ${result.error}`);
+    }
+
+    const outputUrl = Array.isArray(result.output) ? result.output[0] : result.output;
+    
+    // Download and upload to storage
+    console.log('Downloading mesh file...');
+    const meshResponse = await fetch(outputUrl);
+    const meshBlob = await meshResponse.blob();
+    
+    const fileName = `mesh-${job.id}-${Date.now()}.glb`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('outputs')
+      .upload(fileName, meshBlob, {
+        contentType: 'model/gltf-binary',
+        upsert: false
+      });
+
+    if (uploadError) {
+      throw new Error(`Failed to upload mesh: ${uploadError.message}`);
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from('outputs')
+      .getPublicUrl(fileName);
+
+    console.log('Mesh generation complete. Output:', publicUrlData.publicUrl);
+
+    // Create notification
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: job.user_id,
+        type: 'success',
+        title: '3D Mesh Generated',
+        message: 'Your 3D model is ready for download'
+      });
+
+    return {
+      output_url: publicUrlData.publicUrl,
+      storage_path: fileName,
+      type: 'mesh',
+      format: 'glb',
+      prediction_id: result.id
+    };
+  } catch (error) {
+    console.error('Mesh generation error:', error);
+    return {
+      output_url: imageUrl,
+      type: 'mesh',
+      error: error instanceof Error ? error.message : String(error),
+      note: 'Mesh generation failed, original image returned'
     };
   }
 }

@@ -18,7 +18,9 @@ import { MediaPreview } from '@/components/MediaPreview';
 import { ImportAssetDropzone } from '@/components/ImportAssetDropzone';
 import { AssetLibrary } from '@/components/AssetLibrary';
 import { RotoTrackingResults } from '@/components/RotoTrackingResults';
-import { ColorGradeControls } from '@/components/ColorGradeControls';
+import { MeshGeneratorWorkspace } from '@/components/MeshGeneratorWorkspace';
+import { RotoEditingWorkspace } from '@/components/RotoEditingWorkspace';
+import { AdvancedColorGrading } from '@/components/AdvancedColorGrading';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -187,71 +189,78 @@ export default function VFXAnimation() {
         {/* Roto Tab */}
         <TabsContent value="roto" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Roto Scoping Setup</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Job Status Display */}
-                {isPolling && currentJob && currentJob.type === 'roto' && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                      <span className="font-medium text-blue-900">
-                        Processing: Roto/Tracking
-                      </span>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>{t('roto_scoping_setup', 'Roto Scoping Setup')}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Job Status Display */}
+                  {isPolling && currentJob && currentJob.type === 'roto' && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        <span className="font-medium text-blue-900">
+                          Processing: Roto/Tracking
+                        </span>
+                      </div>
+                      <p className="text-sm text-blue-700 mt-1">
+                        Status: {currentJob.status} - Job running in background
+                      </p>
                     </div>
-                    <p className="text-sm text-blue-700 mt-1">
-                      Status: {currentJob.status} - Job running in background
-                    </p>
-                  </div>
-                )}
-                
-                {currentJob?.status === 'done' && currentJob.type === 'roto' && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-medium text-green-900">✓ Processing Complete</span>
+                  )}
+                  
+                  {currentJob?.status === 'done' && currentJob.type === 'roto' && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-medium text-green-900">✓ {t('processing_complete', 'Processing Complete')}</span>
+                      </div>
+                      {(currentJob.output_data as any)?.output_url && (
+                        <Button asChild className="w-full">
+                          <a href={(currentJob.output_data as any).output_url} download target="_blank" rel="noopener noreferrer">
+                            <Download className="h-4 w-4 mr-2" />
+                            {t('download_processed_video', 'Download Processed Video')}
+                          </a>
+                        </Button>
+                      )}
                     </div>
-                    {(currentJob.output_data as any)?.output_url && (
-                      <Button asChild className="w-full">
-                        <a href={(currentJob.output_data as any).output_url} download target="_blank" rel="noopener noreferrer">
-                          <Download className="h-4 w-4 mr-2" />
-                          Download Processed Video
-                        </a>
-                      </Button>
-                    )}
-                  </div>
-                )}
+                  )}
 
-                <div>
-                  <Label>Scene Description</Label>
-                  <Textarea 
-                    placeholder="Describe what to track (e.g., 'Track the actor's face')"
-                    value={sceneDescription}
-                    onChange={(e) => setSceneDescription(e.target.value)}
-                  />
-                </div>
-                
-                <div>
-                  <Label>Upload Video</Label>
-                  <FileUploadZone
-                    bucket="video-uploads"
-                    acceptedFileTypes={['video']}
-                    maxSizeMB={500}
-                    onFileUploaded={(url, file) => handleFileUploaded(url, file, 'video')}
-                  />
-                </div>
-                
-                <Button 
-                  onClick={handleRotoTrack}
-                  disabled={isProcessing || !selectedFiles.video || !sceneDescription}
-                  className="w-full"
-                >
-                  {isProcessing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Camera className="h-4 w-4 mr-2" />}
-                  {isProcessing ? 'Processing...' : 'Start Roto/Track'}
-                </Button>
-              </CardContent>
-            </Card>
+                  <div>
+                    <Label>{t('scene_description', 'Scene Description')}</Label>
+                    <Textarea 
+                      placeholder="Describe what to track (e.g., 'Track the actor's face')"
+                      value={sceneDescription}
+                      onChange={(e) => setSceneDescription(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label>{t('upload_video', 'Upload Video')}</Label>
+                    <FileUploadZone
+                      bucket="video-uploads"
+                      acceptedFileTypes={['video']}
+                      maxSizeMB={500}
+                      onFileUploaded={(url, file) => handleFileUploaded(url, file, 'video')}
+                    />
+                  </div>
+                  
+                  <Button 
+                    onClick={handleRotoTrack}
+                    disabled={isProcessing || !selectedFiles.video || !sceneDescription}
+                    className="w-full"
+                  >
+                    {isProcessing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Camera className="h-4 w-4 mr-2" />}
+                    {isProcessing ? t('processing', 'Processing...') : t('start_roto_track', 'Start Roto/Track')}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <RotoEditingWorkspace 
+                videoUrl={selectedFiles.video}
+                onApplyEdits={(edits) => console.log('Roto edits:', edits)}
+              />
+            </div>
 
             <RotoTrackingResults results={trackingResults} />
           </div>
@@ -259,67 +268,7 @@ export default function VFXAnimation() {
 
         {/* Mesh Tab */}
         <TabsContent value="mesh" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>3D Mesh Generation</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Mesh Type</Label>
-                  <Select value={meshType} onValueChange={setMeshType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select mesh type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="character">Character</SelectItem>
-                      <SelectItem value="prop">Prop</SelectItem>
-                      <SelectItem value="environment">Environment</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label>Complexity</Label>
-                  <Select value={complexity} onValueChange={setComplexity}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select complexity" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <Button 
-                  onClick={handleMeshGeneration}
-                  disabled={isProcessing || !meshType || !complexity}
-                  className="w-full"
-                >
-                  {isProcessing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Box className="h-4 w-4 mr-2" />}
-                  {isProcessing ? 'Generating...' : 'Generate Mesh'}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {meshResults && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Generated Mesh</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Button asChild className="w-full">
-                    <a href={meshResults.download_url} target="_blank" rel="noopener noreferrer">
-                      <Download className="h-4 w-4 mr-2" />
-                      Download 3D Model
-                    </a>
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          <MeshGeneratorWorkspace projectId={projectId} />
         </TabsContent>
 
         {/* Color Grading Tab */}
@@ -381,7 +330,7 @@ export default function VFXAnimation() {
               </CardContent>
             </Card>
 
-            <ColorGradeControls 
+            <AdvancedColorGrading 
               onApply={handleColorGrade}
               isProcessing={isProcessing}
             />
