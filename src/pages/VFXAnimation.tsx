@@ -86,13 +86,13 @@ export default function VFXAnimation() {
 
       if (error) throw error;
       
-      if (data.job_id) {
+      if (data?.job_id) {
         setCurrentJobId(data.job_id);
         startMonitoring(data.job_id, 'Roto/Track');
+        toast.success('Roto job queued! Processing in background...');
+      } else {
+        toast.error('Failed to create job');
       }
-      
-      setTrackingResults(data);
-      toast.success('Roto/Track processing started! Job running in background...');
     } catch (error: any) {
       toast.error(`Failed to process video: ${error.message}`);
     } finally {
@@ -135,18 +135,24 @@ export default function VFXAnimation() {
     setIsProcessing(true);
     try {
       const authToken = (await supabase.auth.getSession()).data.session?.access_token;
-      const { data, error } = await supabase.functions.invoke('vfx-color-grade', {
+      const { data, error } = await supabase.functions.invoke('simple-color-grade', {
         body: {
-          imageUrl: selectedFiles.colorGradeMedia,
+          videoUrl: selectedFiles.colorGradeMedia,
           projectId: projectId,
-          gradeSettings: settings,
+          colorPreset: settings?.preset || 'cinematic',
         },
         headers: { Authorization: `Bearer ${authToken}` }
       });
 
       if (error) throw error;
-      setColorGradeResults(data);
-      toast.success('Color grading completed!');
+      
+      if (data?.job_id) {
+        setCurrentJobId(data.job_id);
+        startMonitoring(data.job_id, 'Color Grading');
+        toast.success('Color grading job queued! Processing in background...');
+      } else {
+        toast.error('Failed to create job');
+      }
     } catch (error: any) {
       toast.error(`Failed to process color grading: ${error.message}`);
     } finally {
@@ -201,14 +207,14 @@ export default function VFXAnimation() {
                   </div>
                 )}
                 
-                {currentJob?.status === 'done' && currentJob.type === 'roto_tracking' && currentJob.output_data && (
+                {currentJob?.status === 'done' && currentJob.type === 'roto' && (
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="font-medium text-green-900">✓ Processing Complete</span>
                     </div>
-                    {currentJob.output_data.processed_video_url && (
+                    {(currentJob.output_data as any)?.output_url && (
                       <Button asChild className="w-full">
-                        <a href={currentJob.output_data.processed_video_url} download target="_blank" rel="noopener noreferrer">
+                        <a href={(currentJob.output_data as any).output_url} download target="_blank" rel="noopener noreferrer">
                           <Download className="h-4 w-4 mr-2" />
                           Download Processed Video
                         </a>
@@ -333,16 +339,16 @@ export default function VFXAnimation() {
             </div>
           )}
           
-          {currentJob?.status === 'done' && currentJob.type === 'color-grade' && currentJob.output_data && (
+          {currentJob?.status === 'done' && currentJob.type === 'color-grade' && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
               <div className="flex items-center gap-2 mb-3">
                 <span className="font-medium text-green-900">✓ Color Grading Complete</span>
               </div>
-              {currentJob.output_data.output_url && (
+              {(currentJob.output_data as any)?.output_url && (
                 <>
-                  <MediaPreview url={currentJob.output_data.output_url} type="image" />
+                  <MediaPreview url={(currentJob.output_data as any).output_url} type="image" />
                   <Button asChild className="w-full mt-3">
-                    <a href={currentJob.output_data.output_url} download target="_blank" rel="noopener noreferrer">
+                    <a href={(currentJob.output_data as any).output_url} download target="_blank" rel="noopener noreferrer">
                       <Download className="h-4 w-4 mr-2" />
                       Download Graded Image
                     </a>

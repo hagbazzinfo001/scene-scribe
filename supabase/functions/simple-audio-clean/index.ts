@@ -49,15 +49,15 @@ serve(async (req) => {
 
     console.log('Processing audio cleanup for:', audioUrl)
 
-    // Create job record
+    // Create job record with pending status
     const { data: job, error: jobError } = await supabase
       .from('jobs')
       .insert({
         user_id: user.id,
         project_id: projectId,
-        type: 'audio-cleanup',
-        status: 'running',
-        input_data: { audio_url: audioUrl, preset }
+        type: 'audio-clean',
+        status: 'pending',
+        input_data: { file_url: audioUrl, preset }
       })
       .select()
       .single()
@@ -68,87 +68,15 @@ serve(async (req) => {
 
     console.log('Created audio cleanup job:', job.id)
 
-    // Create a signed URL for the cleaned audio (simulate processing)
-    try {
-      const fileName = `cleaned_${Date.now()}_audio.mp3`
-      const filePath = `${user.id}/${projectId}/${fileName}`
-      
-      // Generate signed URL for output
-      const { data: urlData, error: urlError } = await supabase.storage
-        .from('audio-uploads')
-        .createSignedUrl(filePath, 3600)
-
-      if (urlError) {
-        console.log('URL generation failed, using original audio URL')
-      }
-
-      const outputUrl = urlData?.signedUrl || audioUrl
-
-      // Update job with results
-      await supabase
-        .from('jobs')
-        .update({
-          status: 'done',
-          output_data: { 
-            output_url: outputUrl,
-            preset_used: preset,
-            processing_type: 'voice_enhancement'
-          },
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', job.id)
-
-      // Create user asset record
-      if (projectId) {
-        await supabase
-          .from('user_assets')
-          .insert({
-            user_id: user.id,
-            project_id: projectId,
-            filename: fileName,
-            file_url: outputUrl,
-            file_type: 'audio',
-            mime_type: 'audio/mpeg',
-            processing_status: 'completed',
-            metadata: { preset, original_url: audioUrl }
-          })
-      }
-
-      // Create notification
-      await supabase
-        .from('notifications')
-        .insert({
-          user_id: user.id,
-          title: 'Audio Cleanup Complete',
-          message: `Audio enhancement completed successfully`,
-          type: 'success'
-        })
-
-      console.log('Audio cleanup completed for job:', job.id)
-
-      return new Response(JSON.stringify({
-        success: true,
-        jobId: job.id,
-        outputUrl: outputUrl,
-        message: 'Audio cleanup completed successfully'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      })
-    } catch (processError) {
-      console.error('Audio processing failed:', processError)
-      
-      // Update job with error
-      await supabase
-        .from('jobs')
-        .update({
-          status: 'error',
-          error_message: processError instanceof Error ? processError.message : String(processError)
-        })
-        .eq('id', job.id)
-
-      throw processError
-    }
+    // Job created - worker will process it
+    return new Response(JSON.stringify({
+      success: true,
+      job_id: job.id,
+      message: 'Audio cleanup job queued for processing'
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    })
   } catch (error) {
     console.error('Error in simple-audio-clean function:', error)
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {

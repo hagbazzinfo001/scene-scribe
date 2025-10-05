@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Upload, Mic, Volume2, Download, Wand2, Settings, Play, Pause, AudioLines, RefreshCw } from 'lucide-react';
+import { Upload, Mic, Volume2, Download, Wand2, Settings, Play, Pause, AudioLines, RefreshCw, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useFileUpload } from '@/hooks/useFileUpload';
-import { MediaPreview } from '@/components/MediaPreview';
+import { useJobStatus } from '@/hooks/useJobStatus';
 
 export default function AudioCleanup() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -19,18 +19,19 @@ export default function AudioCleanup() {
   const [voiceEnhancement, setVoiceEnhancement] = useState([80]);
   const [isRecording, setIsRecording] = useState(false);
   const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [processedAudioUrl, setProcessedAudioUrl] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [sampleRate, setSampleRate] = useState(48000);
   const [bitDepth, setBitDepth] = useState(24);
   const [outputFormat, setOutputFormat] = useState('wav');
   const [processingMode, setProcessingMode] = useState('standard');
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   
-  const { uploadFile, uploads } = useFileUpload();
+  const { uploadFile } = useFileUpload();
+  const { job: currentJob, isPolling } = useJobStatus(currentJobId);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -95,61 +96,30 @@ export default function AudioCleanup() {
 
       console.log('Uploaded audio URL:', audioUrl);
 
-      // Create job for audio processing
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Authentication required');
+      // Call simple-audio-clean function to create job
+      const authToken = (await supabase.auth.getSession()).data.session?.access_token;
+      const { data, error } = await supabase.functions.invoke('simple-audio-clean', {
+        body: {
+          audioUrl: audioUrl,
+          projectId: null,
+          preset: processingMode
+        },
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+
+      if (error) throw error;
+
+      if (data?.job_id) {
+        setCurrentJobId(data.job_id);
+        toast.success('Audio cleanup job queued! Processing in background...');
+      } else {
+        toast.error('Failed to create job');
       }
-
-      const { data: job, error: jobError } = await supabase
-        .from('jobs')
-        .insert({
-          user_id: user.id,
-          type: 'audio-clean',
-          status: 'pending',
-          input_data: {
-            file_url: audioUrl,
-            noise_reduction: noiseReduction[0],
-            voice_enhancement: voiceEnhancement[0],
-            preset: processingMode
-          }
-        })
-        .select()
-        .single();
-
-      if (jobError) throw jobError;
-
-      toast.success('Job queued! Processing will continue in background...');
-
-      // Poll for job completion
-      const pollJob = async () => {
-        const { data: jobData } = await supabase
-          .from('jobs')
-          .select('*')
-          .eq('id', job.id)
-          .single();
-
-        if (jobData?.status === 'done') {
-          const outputData = jobData.output_data as any;
-          if (outputData?.output_url) {
-            setProcessedAudioUrl(outputData.output_url);
-            toast.success('Audio processing completed!');
-            setIsProcessing(false);
-          }
-        } else if (jobData?.status === 'failed') {
-          toast.error(`Processing failed: ${jobData.error_message || 'Unknown error'}`);
-          setIsProcessing(false);
-        } else {
-          // Still processing, check again in 3 seconds
-          setTimeout(pollJob, 3000);
-        }
-      };
-
-      pollJob();
 
     } catch (error: any) {
       console.error('Audio processing error:', error);
       toast.error(`Processing failed: ${error.message}`);
+    } finally {
       setIsProcessing(false);
     }
   };
@@ -165,28 +135,26 @@ export default function AudioCleanup() {
     }
   };
 
-  const downloadProcessedAudio = async () => {
-    if (processedAudioUrl) {
-      try {
-        const response = await fetch(processedAudioUrl);
-        if (!response.ok) throw new Error('Failed to fetch audio');
-        
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `cleaned-audio-${Date.now()}.${outputFormat}`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        toast.success('Download completed');
-      } catch (error) {
-        console.error('Download error:', error);
-        toast.error('Download failed - trying direct link');
-        // Fallback to direct link
-        window.open(processedAudioUrl, '_blank');
-      }
+  const downloadProcessedAudio = async (url: string) => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch audio');
+      
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `cleaned-audio-${Date.now()}.${outputFormat}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      toast.success('Download completed');
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Download failed - trying direct link');
+      // Fallback to direct link
+      window.open(url, '_blank');
     }
   };
 
@@ -361,36 +329,75 @@ export default function AudioCleanup() {
             </TabsContent>
           </Tabs>
 
+          {/* Job Status Display */}
+          {isPolling && currentJob && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  Processing Audio
+                </CardTitle>
+                <CardDescription>
+                  Status: {currentJob.status} - Job running in background
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+          
           {/* Processing Results */}
-          {processedAudioUrl && (
+          {currentJob?.status === 'done' && (
             <Card>
               <CardHeader>
                 <CardTitle>Processing Complete</CardTitle>
                 <CardDescription>Your audio has been successfully cleaned and enhanced</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <Button onClick={togglePlayback} variant="outline" size="sm">
-                    {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                    {isPlaying ? 'Pause' : 'Play'}
-                  </Button>
-                  <Button onClick={downloadProcessedAudio} size="sm" className="bg-green-600 hover:bg-green-700">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download Cleaned Audio
-                  </Button>
-                  <Button onClick={() => { setProcessedAudioUrl(''); setAudioFile(null); setIsPlaying(false); }} variant="outline" size="sm">
-                    Reset
-                  </Button>
-                </div>
-                <audio
-                  ref={audioRef}
-                  src={processedAudioUrl}
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                  onEnded={() => setIsPlaying(false)}
-                  className="w-full"
-                  controls
-                />
+                {(currentJob.output_data as any)?.output_url && (
+                  <>
+                    <div className="flex items-center gap-4">
+                      <Button onClick={togglePlayback} variant="outline" size="sm">
+                        {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                        {isPlaying ? 'Pause' : 'Play'}
+                      </Button>
+                      <Button 
+                        onClick={() => downloadProcessedAudio((currentJob.output_data as any).output_url)} 
+                        size="sm" 
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Cleaned Audio
+                      </Button>
+                      <Button onClick={() => { setCurrentJobId(null); setAudioFile(null); setIsPlaying(false); }} variant="outline" size="sm">
+                        Reset
+                      </Button>
+                    </div>
+                    <audio
+                      ref={audioRef}
+                      src={(currentJob.output_data as any).output_url}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      onEnded={() => setIsPlaying(false)}
+                      className="w-full"
+                      controls
+                    />
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+          
+          {currentJob?.status === 'failed' && (
+            <Card className="border-red-200 bg-red-50">
+              <CardHeader>
+                <CardTitle className="text-red-900">Processing Failed</CardTitle>
+                <CardDescription className="text-red-700">
+                  {(currentJob as any).error_message || 'Unknown error occurred'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={() => setCurrentJobId(null)} variant="outline">
+                  Try Again
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -465,30 +472,6 @@ export default function AudioCleanup() {
             </CardContent>
           </Card>
 
-          {/* Upload Progress */}
-          {uploads.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Upload Progress</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {uploads.map((upload, index) => (
-                  <div key={index} className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="truncate">{upload.file.name}</span>
-                      <Badge variant={
-                        upload.status === 'complete' ? 'default' :
-                        upload.status === 'error' ? 'destructive' : 'secondary'
-                      }>
-                        {upload.status}
-                      </Badge>
-                    </div>
-                    <Progress value={upload.progress} />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
     </div>

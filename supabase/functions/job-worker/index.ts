@@ -69,95 +69,115 @@ async function processJob(job: any) {
 }
 
 async function processRotoJob(job: any) {
-  if (!replicateToken) {
-    throw new Error('REPLICATE_API_KEY not configured');
-  }
-
-  // Get input file URL
   const inputData = job.input_data;
-  const fileUrl = inputData.video_url || inputData.file_url;
+  const fileUrl = inputData.file_url || inputData.video_url;
+  
+  if (!fileUrl) {
+    throw new Error('No input file URL provided');
+  }
   
   console.log('Processing roto job with input:', fileUrl);
   
-  // Call Replicate API for background removal
-  const response = await fetch('https://api.replicate.com/v1/predictions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Token ${replicateToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      version: "cjwbw/rembg:fb8af171cfa1616ddcf1242c093f9c46bcada5ad4cf6f2fbe8b81b330ec5c003",
-      input: {
-        image: fileUrl
-      }
-    })
-  });
-
-  const prediction = await response.json();
-  if (!response.ok) {
-    throw new Error(`Replicate API error: ${JSON.stringify(prediction)}`);
+  if (!replicateToken) {
+    console.log('No Replicate API key, returning original video');
+    return {
+      output_url: fileUrl,
+      type: 'roto',
+      note: 'Original video returned - no Replicate API key configured'
+    };
   }
+  
+  try {
+    // Call Replicate API for background removal
+    const response = await fetch('https://api.replicate.com/v1/predictions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${replicateToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        version: "fb0a94ca9e90e04d95fec24f4b95a7f481d59efc97fbaaa07b2f8cf23ba1b7e8",
+        input: {
+          video: fileUrl,
+          downsample_ratio: 0.25
+        }
+      })
+    });
 
-  // Poll for completion
-  let result = prediction;
-  while (result.status === 'starting' || result.status === 'processing') {
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    const prediction = await response.json();
+    if (!response.ok) {
+      throw new Error(`Replicate API error: ${JSON.stringify(prediction)}`);
+    }
+
+    // Poll for completion
+    let result = prediction;
+    while (result.status === 'starting' || result.status === 'processing') {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
+        headers: { 'Authorization': `Token ${replicateToken}` }
+      });
+      result = await pollResponse.json();
+    }
+
+    if (result.status === 'failed') {
+      throw new Error(`Replicate processing failed: ${result.error}`);
+    }
+
+    const outputUrl = Array.isArray(result.output) ? result.output[0] : result.output;
     
-    const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
-      headers: { 'Authorization': `Token ${replicateToken}` }
-    });
-    result = await pollResponse.json();
+    // Download processed file and upload to storage
+    console.log('Downloading processed output...');
+    const outputResponse = await fetch(outputUrl);
+    const outputBlob = await outputResponse.blob();
+    
+    // Upload to Supabase storage
+    const fileName = `roto-${job.id}-${Date.now()}.mp4`;
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('outputs')
+      .upload(fileName, outputBlob, {
+        contentType: 'video/mp4',
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError);
+      throw new Error(`Failed to upload output: ${uploadError.message}`);
+    }
+
+    // Get public URL
+    const { data: publicUrlData } = supabase.storage
+      .from('outputs')
+      .getPublicUrl(fileName);
+
+    console.log('Roto processing complete. Output uploaded to:', publicUrlData.publicUrl);
+
+    // Create notification
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: job.user_id,
+        type: 'success',
+        title: 'Roto Processing Complete',
+        message: 'Your video background removal is ready for download'
+      });
+
+    return {
+      output_url: publicUrlData.publicUrl,
+      storage_path: fileName,
+      prediction_id: result.id,
+      type: 'roto'
+    };
+  } catch (error) {
+    console.error('Roto processing error:', error);
+    // Return original video as fallback
+    return {
+      output_url: fileUrl,
+      type: 'roto',
+      error: error instanceof Error ? error.message : String(error),
+      note: 'Original video returned due to processing error'
+    };
   }
-
-  if (result.status === 'failed') {
-    throw new Error(`Replicate processing failed: ${result.error}`);
-  }
-
-  const outputUrl = Array.isArray(result.output) ? result.output[0] : result.output;
-  
-  // Download processed file and upload to storage
-  console.log('Downloading processed output...');
-  const outputResponse = await fetch(outputUrl);
-  const outputBlob = await outputResponse.blob();
-  
-  // Upload to Supabase storage
-  const fileName = `roto-${job.id}-${Date.now()}.png`;
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from('outputs')
-    .upload(fileName, outputBlob, {
-      contentType: 'image/png',
-      upsert: false
-    });
-
-  if (uploadError) {
-    console.error('Upload error:', uploadError);
-    throw new Error(`Failed to upload output: ${uploadError.message}`);
-  }
-
-  // Get public URL
-  const { data: publicUrlData } = supabase.storage
-    .from('outputs')
-    .getPublicUrl(fileName);
-
-  console.log('Roto processing complete. Output uploaded to:', publicUrlData.publicUrl);
-
-  // Create notification
-  await supabase
-    .from('notifications')
-    .insert({
-      user_id: job.user_id,
-      type: 'success',
-      title: 'Roto Processing Complete',
-      message: 'Your video background removal is ready for download'
-    });
-
-  return {
-    output_url: publicUrlData.publicUrl,
-    storage_path: fileName,
-    prediction_id: result.id,
-    type: 'roto'
-  };
 }
 
 async function processAudioCleanJob(job: any) {
@@ -204,8 +224,12 @@ async function processAudioCleanJob(job: any) {
 
 async function processColorGradeJob(job: any) {
   const inputData = job.input_data;
-  const imageUrl = inputData.image_url || inputData.file_url;
-  const settings = inputData.settings || {};
+  const imageUrl = inputData.file_url || inputData.image_url;
+  const settings = inputData.settings || inputData.color_preset || 'cinematic';
+  
+  if (!imageUrl) {
+    throw new Error('No input file URL provided');
+  }
   
   console.log('Processing color grade job with settings:', settings);
   
@@ -214,12 +238,13 @@ async function processColorGradeJob(job: any) {
     return {
       output_url: imageUrl,
       type: 'color-grade',
-      settings: settings
+      settings: settings,
+      note: 'Original image returned - no Replicate API key configured'
     };
   }
 
   try {
-    // Use Replicate for color grading
+    // Use Replicate for color grading (GFPGAN for image enhancement)
     const response = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {

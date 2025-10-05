@@ -49,15 +49,15 @@ serve(async (req) => {
 
     console.log('Processing color grading for:', videoUrl)
 
-    // Create job record
+    // Create job record with pending status
     const { data: job, error: jobError } = await supabase
       .from('jobs')
       .insert({
         user_id: user.id,
         project_id: projectId,
         type: 'color-grade',
-        status: 'running',
-        input_data: { video_url: videoUrl, color_preset: colorPreset }
+        status: 'pending',
+        input_data: { file_url: videoUrl, color_preset: colorPreset }
       })
       .select()
       .single()
@@ -68,79 +68,11 @@ serve(async (req) => {
 
     console.log('Created color grading job:', job.id)
 
-    // Simulate processing and return result
-    const simulateProcessing = async () => {
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // For demonstration, we'll return the original video URL
-      // In real implementation, this would be the color-graded video
-      const outputUrl = videoUrl
-      
-      // Update job with results
-      await supabase
-        .from('jobs')
-        .update({
-          status: 'done',
-          output_data: { 
-            output: outputUrl,
-            graded_video_url: outputUrl,
-            color_preset: colorPreset,
-            processing_type: 'color_grading'
-          },
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', job.id)
-
-      // Create user asset record
-      if (projectId) {
-        const fileName = `graded_${Date.now()}_video.mp4`
-        await supabase
-          .from('user_assets')
-          .insert({
-            user_id: user.id,
-            project_id: projectId,
-            filename: fileName,
-            file_url: outputUrl,
-            file_type: 'video',
-            mime_type: 'video/mp4',
-            processing_status: 'completed',
-            metadata: { color_preset: colorPreset, original_url: videoUrl }
-          })
-      }
-
-      // Create notification
-      await supabase
-        .from('notifications')
-        .insert({
-          user_id: user.id,
-          title: 'Color Grading Complete',
-          message: `Video color grading completed successfully`,
-          type: 'success'
-        })
-
-      console.log('Color grading completed for job:', job.id)
-    }
-
-    // Start processing in background
-    simulateProcessing().catch(async (error) => {
-      console.error('Color grading failed:', error)
-      await supabase
-        .from('jobs')
-        .update({
-          status: 'error',
-          error_message: error.message
-        })
-        .eq('id', job.id)
-    })
-
+    // Job created - worker will process it
     return new Response(JSON.stringify({
       success: true,
-      jobId: job.id,
-      output: videoUrl,
-      output_data: {
-        graded_video_url: videoUrl
-      },
-      message: 'Color grading started successfully'
+      job_id: job.id,
+      message: 'Color grading job queued for processing'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
