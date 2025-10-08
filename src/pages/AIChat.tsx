@@ -1,8 +1,10 @@
 import { Bot, MessageSquare, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChatAssistant } from '@/components/ChatAssistant';
+import { useTranslation } from 'react-i18next';
 
 export default function AIChat() {
+  const { t } = useTranslation();
   return (
     <div className="container mx-auto p-6 h-full">
       <div className="mb-6">
@@ -11,9 +13,9 @@ export default function AIChat() {
             <Bot className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">AI Assistant Chat</h1>
+            <h1 className="text-2xl font-bold">{t('ai_assistant_chat')}</h1>
             <p className="text-muted-foreground">
-              Global AI assistant for all your Nollywood production needs
+              {t('ai_assistant_description')}
             </p>
           </div>
         </div>

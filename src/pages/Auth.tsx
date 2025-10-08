@@ -9,9 +9,11 @@ import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 import { Film, Mail } from 'lucide-react';
 import { LanguageToggle } from '@/components/LanguageToggle';
+import { useTranslation } from 'react-i18next';
 
 export default function Auth() {
   const { user, signUp, signIn, signInWithGoogle, loading } = useAuth();
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
 
   // Redirect if already authenticated
@@ -65,10 +67,10 @@ export default function Auth() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <Film className="h-10 w-10 text-primary mr-2" />
-            <h1 className="text-2xl font-bold text-foreground">Nollywood AI</h1>
+            <h1 className="text-2xl font-bold text-foreground">{t('nollyai_studio')}</h1>
           </div>
           <p className="text-muted-foreground">
-            Your intelligent assistant for film pre-production
+            {t('film_production_assistant')}
           </p>
         </div>
 
@@ -76,36 +78,36 @@ export default function Auth() {
           <CardContent className="p-6">
             <Tabs defaultValue="signin" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                <TabsTrigger value="signin">{t('sign_in')}</TabsTrigger>
+                <TabsTrigger value="signup">{t('sign_up')}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="signin" className="space-y-4">
                 <CardHeader className="px-0 pb-4">
-                  <CardTitle className="text-xl">Welcome back</CardTitle>
+                  <CardTitle className="text-xl">{t('welcome_back')}</CardTitle>
                   <CardDescription>
-                    Sign in to your account to continue
+                    {t('sign_in_to_continue')}
                   </CardDescription>
                 </CardHeader>
 
                 <form onSubmit={handleEmailSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
+                    <Label htmlFor="signin-email">{t('email')}</Label>
                     <Input
                       id="signin-email"
                       name="email"
                       type="email"
-                      placeholder="Enter your email"
+                      placeholder={t('enter_email')}
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
+                    <Label htmlFor="signin-password">{t('password')}</Label>
                     <Input
                       id="signin-password"
                       name="password"
                       type="password"
-                      placeholder="Enter your password"
+                      placeholder={t('enter_password')}
                       required
                     />
                   </div>
@@ -114,47 +116,47 @@ export default function Auth() {
                     className="w-full"
                     disabled={isLoading}
                   >
-                    {isLoading ? "Signing in..." : "Sign In"}
+                    {isLoading ? t('signing_in') : t('sign_in')}
                   </Button>
                 </form>
               </TabsContent>
 
               <TabsContent value="signup" className="space-y-4">
                 <CardHeader className="px-0 pb-4">
-                  <CardTitle className="text-xl">Create account</CardTitle>
+                  <CardTitle className="text-xl">{t('create_account')}</CardTitle>
                   <CardDescription>
-                    Get started with your film projects
+                    {t('get_started')}
                   </CardDescription>
                 </CardHeader>
 
                 <form onSubmit={handleEmailSignUp} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name">Full Name</Label>
+                    <Label htmlFor="signup-name">{t('full_name')}</Label>
                     <Input
                       id="signup-name"
                       name="fullName"
                       type="text"
-                      placeholder="Enter your full name"
+                      placeholder={t('enter_full_name')}
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
+                    <Label htmlFor="signup-email">{t('email')}</Label>
                     <Input
                       id="signup-email"
                       name="email"
                       type="email"
-                      placeholder="Enter your email"
+                      placeholder={t('enter_email')}
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
+                    <Label htmlFor="signup-password">{t('password')}</Label>
                     <Input
                       id="signup-password"
                       name="password"
                       type="password"
-                      placeholder="Create a password"
+                      placeholder={t('create_password')}
                       required
                       minLength={6}
                     />
@@ -164,7 +166,7 @@ export default function Auth() {
                     className="w-full"
                     disabled={isLoading}
                   >
-                    {isLoading ? "Creating account..." : "Create Account"}
+                    {isLoading ? t('creating_account') : t('create_account')}
                   </Button>
                 </form>
               </TabsContent>
@@ -179,7 +181,7 @@ export default function Auth() {
                 disabled={isLoading}
               >
                 <Mail className="mr-2 h-4 w-4" />
-                Continue with Google
+                {t('continue_with_google')}
               </Button>
             </div>
           </CardContent>

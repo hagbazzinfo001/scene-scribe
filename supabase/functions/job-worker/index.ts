@@ -103,7 +103,7 @@ async function processRotoJob(job: any) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: "fb0a94ca9e90e04d95fec24f4b95a7f481d59efc97fbaaa07b2f8cf23ba1b7e8",
+        version: "d55b9f2dcfb156089755804f596c3d913d5a021e77ed9dd2c4b70fb83a469c50",
         input: {
           video: fileUrl,
           downsample_ratio: 0.25
@@ -232,7 +232,7 @@ async function processAudioCleanJob(job: any) {
 async function processColorGradeJob(job: any) {
   const inputData = job.input_data;
   const imageUrl = inputData.file_url || inputData.image_url;
-  const settings = inputData.settings || inputData.color_preset || 'cinematic';
+  const settings = inputData.settings || inputData.color_preset || inputData.preset || 'cinematic';
   
   if (!imageUrl) {
     throw new Error('No input file URL provided');
@@ -349,7 +349,39 @@ async function processScriptBreakdownJob(job: any) {
   }
 
   const inputData = job.input_data;
-  const scriptContent = inputData.script_content || inputData.content;
+  let scriptContent = inputData.script_content || inputData.content;
+  
+  // If no direct content, try to download from file_url
+  if (!scriptContent && inputData.file_url) {
+    console.log('Downloading script from URL:', inputData.file_url);
+    try {
+      const fileResponse = await fetch(inputData.file_url);
+      if (!fileResponse.ok) {
+        throw new Error(`Failed to download script: ${fileResponse.statusText}`);
+      }
+      
+      // Check if it's a PDF
+      const contentType = fileResponse.headers.get('content-type');
+      if (contentType?.includes('pdf')) {
+        // For PDF, we'll extract text (simplified - in production use a proper PDF parser)
+        const arrayBuffer = await fileResponse.arrayBuffer();
+        // Note: This is a placeholder - you'd want to use a proper PDF parser library
+        scriptContent = `[PDF Content from ${inputData.filename || 'script'}]`;
+        console.log('Note: PDF parsing not fully implemented, using placeholder');
+      } else {
+        // Assume it's text
+        scriptContent = await fileResponse.text();
+      }
+      console.log('Script downloaded successfully, length:', scriptContent?.length);
+    } catch (error) {
+      console.error('Error downloading script:', error);
+      throw new Error(`Failed to download script file: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
+  if (!scriptContent) {
+    throw new Error('No script content available');
+  }
   
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',

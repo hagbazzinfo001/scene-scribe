@@ -12,10 +12,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 
 export default function Dashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -59,15 +61,15 @@ export default function Dashboard() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       toast({
-        title: "Project created",
-        description: "Your new project has been created successfully.",
+        title: t('project_created'),
+        description: t('project_created_success'),
       });
       setOpen(false);
       navigate(`/project/${data.id}`);
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
+        title: t('error'),
         description: error.message,
         variant: "destructive",
       });
@@ -102,9 +104,9 @@ export default function Dashboard() {
     <div className="flex-1 space-y-4 p-4 md:p-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-foreground">Projects</h2>
+          <h2 className="text-3xl font-bold text-foreground">{t('projects')}</h2>
           <p className="text-muted-foreground">
-            Manage your film pre-production projects
+            {t('manage_projects')}
           </p>
         </div>
         
@@ -112,32 +114,32 @@ export default function Dashboard() {
           <DialogTrigger asChild>
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
-              New Project
+              {t('new_project')}
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Create New Project</DialogTitle>
+              <DialogTitle>{t('create_new_project')}</DialogTitle>
               <DialogDescription>
-                Start a new film pre-production project. You can add scripts and collaborate with your team.
+                {t('start_new_project')}
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreateProject} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Project Name</Label>
+                <Label htmlFor="name">{t('project_name')}</Label>
                 <Input
                   id="name"
                   name="name"
-                  placeholder="Enter project name"
+                  placeholder={t('enter_project_name')}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">{t('description')}</Label>
                 <Textarea
                   id="description"
                   name="description"
-                  placeholder="Brief description of your project"
+                  placeholder={t('project_description')}
                   rows={3}
                 />
               </div>
@@ -147,10 +149,10 @@ export default function Dashboard() {
                   variant="outline" 
                   onClick={() => setOpen(false)}
                 >
-                  Cancel
+                  {t('cancel')}
                 </Button>
                 <Button type="submit" disabled={isCreating}>
-                  {isCreating ? "Creating..." : "Create Project"}
+                  {isCreating ? t('creating') : t('create_project')}
                 </Button>
               </div>
             </form>
@@ -186,7 +188,7 @@ export default function Dashboard() {
                   {project.name}
                 </CardTitle>
                 <CardDescription>
-                  {project.description || "No description"}
+                  {project.description || t('no_description')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -197,7 +199,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center gap-1">
                     <Users className="h-4 w-4" />
-                    {Array.isArray(project.project_collaborators) ? project.project_collaborators.length : 0} collaborators
+                    {Array.isArray(project.project_collaborators) ? project.project_collaborators.length : 0} {t('collaborators')}
                   </div>
                 </div>
               </CardContent>
@@ -207,13 +209,13 @@ export default function Dashboard() {
       ) : (
         <div className="text-center py-12">
           <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
+          <h3 className="text-lg font-semibold mb-2">{t('no_projects_yet')}</h3>
           <p className="text-muted-foreground mb-4">
-            Create your first project to get started with script breakdown and production planning.
+            {t('create_first_project_hint')}
           </p>
           <Button onClick={() => setOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
-            Create Your First Project
+            {t('create_first_project')}
           </Button>
         </div>
       )}

@@ -12,8 +12,10 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { useJobStatus } from '@/hooks/useJobStatus';
+import { useTranslation } from 'react-i18next';
 
 export default function AudioCleanup() {
+  const { t } = useTranslation();
   const [isProcessing, setIsProcessing] = useState(false);
   const [noiseReduction, setNoiseReduction] = useState([70]);
   const [voiceEnhancement, setVoiceEnhancement] = useState([80]);
@@ -163,8 +165,8 @@ export default function AudioCleanup() {
       <div className="flex items-center gap-3 mb-6">
         <AudioLines className="h-8 w-8 text-primary" />
         <div>
-          <h1 className="text-3xl font-bold">Audio Cleanup</h1>
-          <p className="text-muted-foreground">AI-powered audio enhancement and noise reduction</p>
+          <h1 className="text-3xl font-bold">{t('audio_cleanup')}</h1>
+          <p className="text-muted-foreground">{t('ai_audio_enhancement')}</p>
         </div>
       </div>
 
