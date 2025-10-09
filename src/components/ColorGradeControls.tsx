@@ -39,13 +39,13 @@ const DEFAULT_SETTINGS: ColorGradeSettings = {
   tint: 0
 };
 
-const PRESET_STYLES = [
-  { id: 'cinematic', name: 'Cinematic', icon: Film, description: 'Professional film look' },
-  { id: 'warm-tone', name: 'Warm Tone', icon: Sun, description: 'Golden hour warmth' },
-  { id: 'cool-tone', name: 'Cool Tone', icon: Zap, description: 'Blue/teal cinema style' },
-  { id: 'vintage', name: 'Vintage', icon: Timer, description: 'Retro film aesthetic' },
-  { id: 'high-contrast', name: 'High Contrast', icon: Contrast, description: 'Bold dramatic look' },
-  { id: 'natural', name: 'Natural', icon: Palette, description: 'Balanced natural tones' }
+const PRESET_STYLES = (t: any) => [
+  { id: 'cinematic', name: t('cinematic', 'Cinematic'), icon: Film, description: t('professional_film_look', 'Professional film look') },
+  { id: 'warm-tone', name: t('warm_tone', 'Warm Tone'), icon: Sun, description: t('golden_hour_warmth', 'Golden hour warmth') },
+  { id: 'cool-tone', name: t('cool_tone', 'Cool Tone'), icon: Zap, description: t('blue_teal_cinema_style', 'Blue/teal cinema style') },
+  { id: 'vintage', name: t('vintage', 'Vintage'), icon: Timer, description: t('retro_film_aesthetic', 'Retro film aesthetic') },
+  { id: 'high-contrast', name: t('high_contrast', 'High Contrast'), icon: Contrast, description: t('bold_dramatic_look', 'Bold dramatic look') },
+  { id: 'natural', name: t('natural', 'Natural'), icon: Palette, description: t('balanced_natural_tones', 'Balanced natural tones') }
 ];
 
 export function ColorGradeControls({ onApply, isProcessing = false }: ColorGradeControlsProps) {
@@ -81,25 +81,27 @@ export function ColorGradeControls({ onApply, isProcessing = false }: ColorGrade
     onApply(settings);
   };
 
+  const presetStyles = PRESET_STYLES(t);
+  
   return (
     <Card className="w-full max-w-4xl">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Palette className="h-5 w-5" />
-          Professional Color Grading Suite
+          {t('professional_color_grading_suite', 'Professional Color Grading Suite')}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="presets" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="presets">Style Presets</TabsTrigger>
-            <TabsTrigger value="exposure">Exposure & Tone</TabsTrigger>
-            <TabsTrigger value="color">Color & Temperature</TabsTrigger>
+            <TabsTrigger value="presets">{t('style_presets', 'Style Presets')}</TabsTrigger>
+            <TabsTrigger value="exposure">{t('exposure_and_tone', 'Exposure & Tone')}</TabsTrigger>
+            <TabsTrigger value="color">{t('color_and_temperature', 'Color & Temperature')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="presets" className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {PRESET_STYLES.map((preset) => {
+              {presetStyles.map((preset) => {
                 const Icon = preset.icon;
                 return (
                   <Card 
@@ -114,7 +116,7 @@ export function ColorGradeControls({ onApply, isProcessing = false }: ColorGrade
                       <h4 className="font-medium text-sm">{preset.name}</h4>
                       <p className="text-xs text-muted-foreground mt-1">{preset.description}</p>
                       {settings.style === preset.id && (
-                        <Badge variant="default" className="mt-2">Selected</Badge>
+                        <Badge variant="default" className="mt-2">{t('selected', 'Selected')}</Badge>
                       )}
                     </CardContent>
                   </Card>
@@ -127,7 +129,7 @@ export function ColorGradeControls({ onApply, isProcessing = false }: ColorGrade
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium">Exposure</Label>
+                  <Label className="text-sm font-medium">{t('exposure', 'Exposure')}</Label>
                   <Slider
                     value={[settings.exposure]}
                     onValueChange={([value]) => updateSetting('exposure', value)}
@@ -137,12 +139,12 @@ export function ColorGradeControls({ onApply, isProcessing = false }: ColorGrade
                     className="mt-2"
                   />
                   <div className="text-xs text-muted-foreground mt-1">
-                    Current: {settings.exposure.toFixed(2)}
+                    {t('current', 'Current')}: {settings.exposure.toFixed(2)}
                   </div>
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium">Contrast</Label>
+                  <Label className="text-sm font-medium">{t('contrast', 'Contrast')}</Label>
                   <Slider
                     value={[settings.contrast]}
                     onValueChange={([value]) => updateSetting('contrast', value)}
@@ -152,14 +154,14 @@ export function ColorGradeControls({ onApply, isProcessing = false }: ColorGrade
                     className="mt-2"
                   />
                   <div className="text-xs text-muted-foreground mt-1">
-                    Current: {settings.contrast.toFixed(2)}
+                    {t('current', 'Current')}: {settings.contrast.toFixed(2)}
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium">Highlights</Label>
+                  <Label className="text-sm font-medium">{t('highlights', 'Highlights')}</Label>
                   <Slider
                     value={[settings.highlights]}
                     onValueChange={([value]) => updateSetting('highlights', value)}
@@ -169,12 +171,12 @@ export function ColorGradeControls({ onApply, isProcessing = false }: ColorGrade
                     className="mt-2"
                   />
                   <div className="text-xs text-muted-foreground mt-1">
-                    Current: {settings.highlights.toFixed(2)}
+                    {t('current', 'Current')}: {settings.highlights.toFixed(2)}
                   </div>
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium">Shadows</Label>
+                  <Label className="text-sm font-medium">{t('shadows', 'Shadows')}</Label>
                   <Slider
                     value={[settings.shadows]}
                     onValueChange={([value]) => updateSetting('shadows', value)}
@@ -184,7 +186,7 @@ export function ColorGradeControls({ onApply, isProcessing = false }: ColorGrade
                     className="mt-2"
                   />
                   <div className="text-xs text-muted-foreground mt-1">
-                    Current: {settings.shadows.toFixed(2)}
+                    {t('current', 'Current')}: {settings.shadows.toFixed(2)}
                   </div>
                 </div>
               </div>
@@ -195,7 +197,7 @@ export function ColorGradeControls({ onApply, isProcessing = false }: ColorGrade
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium">Vibrance</Label>
+                  <Label className="text-sm font-medium">{t('vibrance', 'Vibrance')}</Label>
                   <Slider
                     value={[settings.vibrance]}
                     onValueChange={([value]) => updateSetting('vibrance', value)}
@@ -205,12 +207,12 @@ export function ColorGradeControls({ onApply, isProcessing = false }: ColorGrade
                     className="mt-2"
                   />
                   <div className="text-xs text-muted-foreground mt-1">
-                    Current: {settings.vibrance.toFixed(2)}
+                    {t('current', 'Current')}: {settings.vibrance.toFixed(2)}
                   </div>
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium">Saturation</Label>
+                  <Label className="text-sm font-medium">{t('saturation', 'Saturation')}</Label>
                   <Slider
                     value={[settings.saturation]}
                     onValueChange={([value]) => updateSetting('saturation', value)}
@@ -220,14 +222,14 @@ export function ColorGradeControls({ onApply, isProcessing = false }: ColorGrade
                     className="mt-2"
                   />
                   <div className="text-xs text-muted-foreground mt-1">
-                    Current: {settings.saturation.toFixed(2)}
+                    {t('current', 'Current')}: {settings.saturation.toFixed(2)}
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <Label className="text-sm font-medium">Temperature</Label>
+                  <Label className="text-sm font-medium">{t('temperature', 'Temperature')}</Label>
                   <Slider
                     value={[settings.temperature]}
                     onValueChange={([value]) => updateSetting('temperature', value)}
@@ -237,12 +239,12 @@ export function ColorGradeControls({ onApply, isProcessing = false }: ColorGrade
                     className="mt-2"
                   />
                   <div className="text-xs text-muted-foreground mt-1">
-                    Current: {settings.temperature}K
+                    {t('current', 'Current')}: {settings.temperature}K
                   </div>
                 </div>
 
                 <div>
-                  <Label className="text-sm font-medium">Tint</Label>
+                  <Label className="text-sm font-medium">{t('tint', 'Tint')}</Label>
                   <Slider
                     value={[settings.tint]}
                     onValueChange={([value]) => updateSetting('tint', value)}
@@ -252,7 +254,7 @@ export function ColorGradeControls({ onApply, isProcessing = false }: ColorGrade
                     className="mt-2"
                   />
                   <div className="text-xs text-muted-foreground mt-1">
-                    Current: {settings.tint}
+                    {t('current', 'Current')}: {settings.tint}
                   </div>
                 </div>
               </div>
@@ -262,7 +264,7 @@ export function ColorGradeControls({ onApply, isProcessing = false }: ColorGrade
 
         <div className="flex justify-between mt-6 pt-4 border-t">
           <Button variant="outline" onClick={resetSettings}>
-            Reset to Default
+            {t('reset_to_default', 'Reset to Default')}
           </Button>
           <div className="flex gap-2">
             <Button 
@@ -270,7 +272,7 @@ export function ColorGradeControls({ onApply, isProcessing = false }: ColorGrade
               disabled={isProcessing}
               className="min-w-[120px]"
             >
-              {isProcessing ? 'Processing...' : 'Apply Color Grade'}
+              {isProcessing ? t('processing', 'Processing...') : t('apply_color_grade', 'Apply Color Grade')}
             </Button>
           </div>
         </div>

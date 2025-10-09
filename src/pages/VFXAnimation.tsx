@@ -288,10 +288,10 @@ export default function VFXAnimation() {
             </div>
           )}
           
-          {currentJob?.status === 'done' && currentJob.type === 'color-grade' && (
+            {currentJob?.status === 'done' && currentJob.type === 'color-grade' && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
               <div className="flex items-center gap-2 mb-3">
-                <span className="font-medium text-green-900">✓ Color Grading Complete</span>
+                <span className="font-medium text-green-900">✓ {t('processing_complete', 'Processing Complete')}</span>
               </div>
               {(currentJob.output_data as any)?.output_url && (
                 <>
@@ -299,7 +299,7 @@ export default function VFXAnimation() {
                   <Button asChild className="w-full mt-3">
                     <a href={(currentJob.output_data as any).output_url} download target="_blank" rel="noopener noreferrer">
                       <Download className="h-4 w-4 mr-2" />
-                      Download Graded Image
+                      {t('download_graded_image', 'Download Graded Image')}
                     </a>
                   </Button>
                 </>
@@ -309,9 +309,9 @@ export default function VFXAnimation() {
           
           <div className="space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Upload Media for Color Grading</CardTitle>
-              </CardHeader>
+          <CardHeader>
+            <CardTitle>{t('upload_media_color_grading', 'Upload Media for Color Grading')}</CardTitle>
+          </CardHeader>
               <CardContent>
                 <FileUploadZone
                   bucket="vfx-assets"
@@ -338,14 +338,14 @@ export default function VFXAnimation() {
             {colorGradeResults && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Graded Result</CardTitle>
+                  <CardTitle>{t('graded_result', 'Graded Result')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <MediaPreview url={colorGradeResults.processed_image_url} type="image" />
                   <Button asChild className="w-full mt-2">
                     <a href={colorGradeResults.download_url} target="_blank" rel="noopener noreferrer">
                       <Download className="h-4 w-4 mr-2" />
-                      Download Graded Image
+                      {t('download_graded_image', 'Download Graded Image')}
                     </a>
                   </Button>
                 </CardContent>

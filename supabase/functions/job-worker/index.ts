@@ -95,7 +95,7 @@ async function processRotoJob(job: any) {
   }
   
   try {
-    // Call Replicate API for background removal
+    // Use working Replicate model for background removal (image-based)
     const response = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
@@ -103,10 +103,9 @@ async function processRotoJob(job: any) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: "d55b9f2dcfb156089755804f596c3d913d5a021e77ed9dd2c4b70fb83a469c50",
+        version: "95fcc2a26d3899cd6c2691c900465aaeff466285a65c14638cc5f36f34befaf1",
         input: {
-          video: fileUrl,
-          downsample_ratio: 0.25
+          image: fileUrl  // Works with both images and video frames
         }
       })
     });
@@ -363,13 +362,10 @@ async function processScriptBreakdownJob(job: any) {
       // Check if it's a PDF
       const contentType = fileResponse.headers.get('content-type');
       if (contentType?.includes('pdf')) {
-        // For PDF, we'll extract text (simplified - in production use a proper PDF parser)
         const arrayBuffer = await fileResponse.arrayBuffer();
-        // Note: This is a placeholder - you'd want to use a proper PDF parser library
         scriptContent = `[PDF Content from ${inputData.filename || 'script'}]`;
         console.log('Note: PDF parsing not fully implemented, using placeholder');
       } else {
-        // Assume it's text
         scriptContent = await fileResponse.text();
       }
       console.log('Script downloaded successfully, length:', scriptContent?.length);
@@ -382,46 +378,83 @@ async function processScriptBreakdownJob(job: any) {
   if (!scriptContent) {
     throw new Error('No script content available');
   }
-  
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openAIKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a Nollywood script breakdown assistant. Analyze the script and return a JSON object with scenes, characters, props, and locations.'
-        },
-        {
-          role: 'user',
-          content: `Analyze this script and provide a detailed breakdown:\n\n${scriptContent}`
-        }
-      ],
-      temperature: 0.3,
-      max_tokens: 2000
-    })
-  });
 
-  const aiResponse = await response.json();
-  if (!response.ok) {
-    throw new Error(`OpenAI API error: ${JSON.stringify(aiResponse)}`);
+  console.log(`Script content length: ${scriptContent.length} characters`);
+  
+  // Chunk large scripts to avoid OpenAI token limits (max ~12k chars per chunk for gpt-4o-mini)
+  const MAX_CHUNK_SIZE = 12000;
+  const chunks: string[] = [];
+  
+  if (scriptContent.length > MAX_CHUNK_SIZE) {
+    console.log('Script is large, processing in chunks');
+    for (let i = 0; i < scriptContent.length; i += MAX_CHUNK_SIZE) {
+      chunks.push(scriptContent.slice(i, i + MAX_CHUNK_SIZE));
+    }
+  } else {
+    chunks.push(scriptContent);
   }
 
-  const breakdown = aiResponse.choices[0].message.content;
+  const breakdowns: any[] = [];
   
+  for (let i = 0; i < chunks.length; i++) {
+    console.log(`Processing chunk ${i + 1}/${chunks.length}`);
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a Nollywood script breakdown assistant. Extract scenes, characters, props, locations from scripts. Return concise structured data.'
+          },
+          {
+            role: 'user',
+            content: chunks.length > 1 
+              ? `Analyze part ${i + 1}/${chunks.length} of this script:\n\n${chunks[i]}`
+              : `Analyze this script:\n\n${chunks[i]}`
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 2000
+      })
+    });
+
+    const aiResponse = await response.json();
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${JSON.stringify(aiResponse)}`);
+    }
+
+    const breakdown = aiResponse.choices[0].message.content;
+    breakdowns.push(breakdown);
+    
+    // Small delay between chunks to avoid rate limits
+    if (i < chunks.length - 1) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  const combinedBreakdown = chunks.length > 1
+    ? `**Multi-Part Script Analysis**\n\n${breakdowns.join('\n\n---\n\n')}`
+    : breakdowns[0];
+
   try {
-    const parsed = JSON.parse(breakdown);
+    const parsed = JSON.parse(combinedBreakdown);
     return {
       breakdown: parsed,
+      script_length: scriptContent.length,
+      chunks_processed: chunks.length,
       type: 'script-breakdown'
     };
   } catch {
     return {
-      breakdown: { raw_response: breakdown },
+      breakdown: { raw_response: combinedBreakdown },
+      script_length: scriptContent.length,
+      chunks_processed: chunks.length,
       type: 'script-breakdown'
     };
   }
