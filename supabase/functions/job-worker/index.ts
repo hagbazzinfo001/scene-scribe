@@ -495,9 +495,9 @@ async function processMeshJob(job: any) {
       replicateInput.prompt = prompt;
     }
 
-    console.log('Creating Replicate prediction for mesh generation...');
+    console.log('Creating Replicate prediction for mesh generation with image:', imageUrl);
     
-    // Use TripoSR for image-to-3D generation (stable and working model)
+    // Use TripoSR - proven working image-to-3D model
     const response = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
@@ -505,8 +505,10 @@ async function processMeshJob(job: any) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: "eacf47b1-4d40-45dc-aaa2-65be6e122b1f", // TripoSR model - stable image-to-3D
-        input: imageUrl ? { image_path: imageUrl } : { prompt: prompt }
+        version: "eacf47b1-4d40-45dc-aaa2-65be6e122b1f",
+        input: {
+          image_path: imageUrl
+        }
       })
     });
 

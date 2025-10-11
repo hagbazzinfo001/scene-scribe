@@ -1,4 +1,4 @@
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stage, Center } from '@react-three/drei';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -101,23 +101,48 @@ export default function MeshGenerator() {
   };
 
   // Update model URL when job completes
-  useState(() => {
+  useEffect(() => {
     if (currentJob?.status === 'done' && currentJob.output_data) {
       const output = currentJob.output_data as any;
       console.log('Job completed with output:', output);
-      if (output.output_url && !output.error) {
+      
+      if (output.error) {
+        toast.error(`Generation failed: ${output.error}`);
+        setModelUrl(null);
+      } else if (output.output_url && output.output_url.endsWith('.glb')) {
+        console.log('Setting model URL:', output.output_url);
         setModelUrl(output.output_url);
         toast.success('3D model generated successfully!');
-      } else if (output.error) {
-        toast.error(`Generation failed: ${output.error}`);
+      } else {
+        console.warn('Invalid output format:', output);
+        toast.error('Invalid model output - expected GLB file');
       }
     }
-  });
+  }, [currentJob?.status, currentJob?.output_data]);
 
   const handleDownload = async () => {
-    if (!modelUrl) return;
-    window.open(modelUrl, '_blank');
-    toast.success('Downloading 3D model...');
+    if (!modelUrl) {
+      toast.error('No model available to download');
+      return;
+    }
+    
+    try {
+      // Download the GLB file
+      const response = await fetch(modelUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `mesh-${Date.now()}.glb`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('3D model downloaded successfully!');
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download model');
+    }
   };
 
   const handleSaveToAssets = async () => {
