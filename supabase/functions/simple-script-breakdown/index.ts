@@ -49,15 +49,15 @@ serve(async (req) => {
 
     console.log('Processing script breakdown for project:', projectId);
 
-    // Create job record
+    // Create job record (status: pending so job-worker picks it up)
     const { data: job, error: jobError } = await supabase
       .from('jobs')
       .insert({
         user_id: user.id,
-        project_id: projectId,
-        type: 'script_breakdown',
-        status: 'running',
-        input_data: { script_content: scriptContent }
+        project_id: projectId || null,
+        type: 'script-breakdown',
+        status: 'pending',
+        input_data: { script_content: scriptContent, source: 'simple' }
       })
       .select()
       .single();
@@ -66,54 +66,13 @@ serve(async (req) => {
       throw jobError;
     }
 
-    console.log('Created script breakdown job:', job.id);
-
-    // Simulate processing and analyze script
-    const simulateProcessing = async () => {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Simple script analysis
-      const breakdown = analyzeScript(scriptContent);
-      
-      // Update job with results
-      await supabase
-        .from('jobs')
-        .update({
-          status: 'done',
-          output_data: breakdown,
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', job.id);
-
-      // Create notification
-      await supabase
-        .from('notifications')
-        .insert({
-          user_id: user.id,
-          title: 'Script Breakdown Complete',
-          message: `Script analysis completed with ${breakdown.scenes.length} scenes found`,
-          type: 'success'
-        });
-
-      console.log('Script breakdown completed for job:', job.id);
-    };
-
-    // Start processing in background
-    simulateProcessing().catch(async (error) => {
-      console.error('Script breakdown failed:', error);
-      await supabase
-        .from('jobs')
-        .update({
-          status: 'error',
-          error_message: error.message
-        })
-        .eq('id', job.id);
-    });
+    console.log('Created simple script breakdown job:', job.id);
 
     return new Response(JSON.stringify({
       success: true,
       jobId: job.id,
-      message: 'Script breakdown started successfully'
+      job_id: job.id,
+      message: 'Script breakdown job queued for processing'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,

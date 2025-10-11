@@ -11,13 +11,33 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
 
-// Helper to extract JSON from LLM response
+// Helper to extract JSON from LLM response (handles markdown code blocks)
 function extractJSON(text: string) {
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start >= 0 && end > start) {
-    return text.slice(start, end + 1);
+  // Try to find JSON in markdown code block first
+  if (text.includes('```json')) {
+    const start = text.indexOf('```json') + 7;
+    const end = text.lastIndexOf('```');
+    if (start > 6 && end > start) {
+      return text.slice(start, end).trim();
+    }
   }
+  
+  // Try generic code block
+  if (text.includes('```')) {
+    const start = text.indexOf('```') + 3;
+    const end = text.lastIndexOf('```');
+    if (start > 2 && end > start) {
+      return text.slice(start, end).trim();
+    }
+  }
+  
+  // Try to find raw JSON
+  const jsonStart = text.indexOf("{");
+  const jsonEnd = text.lastIndexOf("}");
+  if (jsonStart >= 0 && jsonEnd > jsonStart) {
+    return text.slice(jsonStart, jsonEnd + 1);
+  }
+  
   throw new Error("Could not extract JSON from LLM output");
 }
 
@@ -62,9 +82,9 @@ serve(async (req) => {
       .insert({
         user_id: user.id,
         project_id: project_id || null,
-        type: 'script_breakdown',
-        status: 'running',
-        payload: { script_content, depth }
+        type: 'script-breakdown',
+        status: 'pending',
+        input_data: { script_content, depth }
       })
       .select()
       .single();
@@ -77,124 +97,16 @@ serve(async (req) => {
       );
     }
 
-    // Process with Replicate LLaMA
-    const replicateApiKey = Deno.env.get('REPLICATE_API_KEY');
-    if (!replicateApiKey) {
-      await supabase.from('jobs').update({ 
-        status: 'error', 
-        error: 'Replicate API key not configured' 
-      }).eq('id', job.id);
-      
-      return new Response(
-        JSON.stringify({ error: 'Replicate API key not configured' }),
-        { status: 500, headers: corsHeaders }
-      );
-    }
-
-    const Replicate = (await import('https://esm.sh/replicate@0.25.2')).default;
-    const replicate = new Replicate({ auth: replicateApiKey });
-
-    const systemPrompt = `You are a professional Nollywood script breakdown assistant. Analyze this screenplay and return ONLY valid JSON with this exact structure:
-
-{
-  "scenes": [
-    {
-      "scene_id": "string",
-      "start_line": number,
-      "end_line": number,
-      "short_description": "string",
-      "location": "string",
-      "time_of_day": "string",
-      "characters": ["string"],
-      "props": ["string"]
-    }
-  ],
-  "characters": [
-    {
-      "name": "string",
-      "description": "string",
-      "scenes": ["scene_id"]
-    }
-  ],
-  "locations": [
-    {
-      "name": "string",
-      "type": "string",
-      "scenes": ["scene_id"]
-    }
-  ],
-  "props": [
-    {
-      "name": "string",
-      "category": "string",
-      "scenes": ["scene_id"]
-    }
-  ],
-  "summary": {
-    "total_scenes": number,
-    "estimated_shoot_days": number,
-    "budget_category": "low|medium|high"
-  }
-}
-
-Focus on practical Nollywood production elements.`;
-
-    try {
-    const output = await replicate.run(
-      "meta/llama-2-7b-chat:8e6975e5ed6174911a6ff3d60540dfd4844201974602551e10e9e87ab143d81e",
-      {
-        input: {
-          prompt: `${systemPrompt}\n\nScript content:\n${script_content}`,
-          max_new_tokens: 2000,
-          top_p: 0.9,
-          repetition_penalty: 1.15
-        }
-      }
-    );
-
-      const content = Array.isArray(output) ? output.join('') : output;
-      const jsonText = extractJSON(content);
-      const parsed = JSON.parse(jsonText);
-
-      // Update job with results
-      await supabase.from('jobs').update({
-        status: 'done',
-        result: parsed,
-        completed_at: new Date().toISOString()
-      }).eq('id', job.id);
-
-      // Create notification
-      await supabase.from('notifications').insert({
-        user_id: user.id,
-        type: 'job_completed',
-        title: 'Script Breakdown Complete',
-        message: `Your script breakdown is ready with ${parsed.scenes?.length || 0} scenes analyzed.`
-      });
-
-      return new Response(JSON.stringify({
-        success: true,
-        job_id: job.id,
-        result: parsed
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-
-    } catch (error) {
-      console.error('Script breakdown error:', error);
-      
-      await supabase.from('jobs').update({
-        status: 'error',
-        error: error instanceof Error ? error.message : String(error)
-      }).eq('id', job.id);
-
-      return new Response(JSON.stringify({
-        error: 'Script breakdown failed',
-        details: error instanceof Error ? error.message : String(error)
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    // Job created - worker will process it
+    console.log('Created script breakdown job:', job.id);
+    
+    return new Response(JSON.stringify({
+      success: true,
+      job_id: job.id,
+      message: 'Script breakdown job queued for processing'
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
 
   } catch (error) {
     console.error('Error in script-breakdown function:', error);

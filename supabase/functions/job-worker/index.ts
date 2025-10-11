@@ -342,9 +342,9 @@ async function processColorGradeJob(job: any) {
 }
 
 async function processScriptBreakdownJob(job: any) {
-  const openAIKey = Deno.env.get('OPENAI_API_KEY');
-  if (!openAIKey) {
-    throw new Error('OPENAI_API_KEY not configured');
+  const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+  if (!lovableApiKey) {
+    throw new Error('LOVABLE_API_KEY not configured');
   }
 
   const inputData = job.input_data;
@@ -381,8 +381,9 @@ async function processScriptBreakdownJob(job: any) {
 
   console.log(`Script content length: ${scriptContent.length} characters`);
   
-  // Chunk large scripts to avoid OpenAI token limits (max ~12k chars per chunk for gpt-4o-mini)
-  const MAX_CHUNK_SIZE = 12000;
+  // Use Lovable AI Gateway with Gemini 2.5 Flash (FREE until Oct 13, 2025)
+  // Gemini can handle larger context, so we can use bigger chunks
+  const MAX_CHUNK_SIZE = 30000; // Gemini Flash can handle larger context
   const chunks: string[] = [];
   
   if (scriptContent.length > MAX_CHUNK_SIZE) {
@@ -394,70 +395,195 @@ async function processScriptBreakdownJob(job: any) {
     chunks.push(scriptContent);
   }
 
+  const systemPrompt = `You are a professional Nollywood script breakdown assistant. Analyze this screenplay and return ONLY valid JSON with this exact structure:
+
+{
+  "scenes": [
+    {
+      "scene_number": number,
+      "location": "string",
+      "time_of_day": "string (DAY/NIGHT/MORNING/EVENING)",
+      "description": "brief scene description",
+      "characters": ["character names"],
+      "props": ["props needed in scene"],
+      "notes": "production notes"
+    }
+  ],
+  "characters": [
+    {
+      "name": "string",
+      "role": "LEAD/SUPPORTING/MINOR",
+      "description": "character description",
+      "appearances": number
+    }
+  ],
+  "locations": [
+    {
+      "name": "string",
+      "type": "INTERIOR/EXTERIOR",
+      "description": "location description",
+      "scenes": number
+    }
+  ],
+  "props": [
+    {
+      "name": "string",
+      "category": "string",
+      "importance": "HIGH/MEDIUM/LOW",
+      "scenes": ["scene numbers where used"]
+    }
+  ],
+  "summary": {
+    "total_scenes": number,
+    "total_characters": number,
+    "estimated_shoot_days": number,
+    "budget_estimate": "LOW/MEDIUM/HIGH",
+    "production_notes": "key production insights"
+  }
+}
+
+Focus on practical Nollywood production elements. Be detailed and accurate.`;
+
   const breakdowns: any[] = [];
   
   for (let i = 0; i < chunks.length; i++) {
-    console.log(`Processing chunk ${i + 1}/${chunks.length}`);
+    console.log(`Processing chunk ${i + 1}/${chunks.length} with Lovable AI (Gemini Flash)`);
     
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIKey}`,
+        'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'google/gemini-2.5-flash', // FREE model
         messages: [
           {
             role: 'system',
-            content: 'You are a Nollywood script breakdown assistant. Extract scenes, characters, props, locations from scripts. Return concise structured data.'
+            content: systemPrompt
           },
           {
             role: 'user',
             content: chunks.length > 1 
-              ? `Analyze part ${i + 1}/${chunks.length} of this script:\n\n${chunks[i]}`
-              : `Analyze this script:\n\n${chunks[i]}`
+              ? `Analyze part ${i + 1}/${chunks.length} of this script. Return ONLY the JSON structure requested, no additional text:\n\n${chunks[i]}`
+              : `Analyze this complete script. Return ONLY the JSON structure requested, no additional text:\n\n${chunks[i]}`
           }
-        ],
-        temperature: 0.3,
-        max_tokens: 2000
+        ]
       })
     });
 
-    const aiResponse = await response.json();
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${JSON.stringify(aiResponse)}`);
+      const errorText = await response.text();
+      console.error('Lovable AI API error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        throw new Error('Rate limit exceeded. Please try again in a few moments.');
+      }
+      if (response.status === 402) {
+        throw new Error('AI credits depleted. Please add credits to your Lovable workspace.');
+      }
+      
+      throw new Error(`Lovable AI API error: ${response.status} - ${errorText}`);
     }
 
-    const breakdown = aiResponse.choices[0].message.content;
+    const aiResponse = await response.json();
+    const breakdown = aiResponse.choices?.[0]?.message?.content;
+    
+    if (!breakdown) {
+      throw new Error('No content returned from Lovable AI');
+    }
+    
     breakdowns.push(breakdown);
     
     // Small delay between chunks to avoid rate limits
     if (i < chunks.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
 
-  const combinedBreakdown = chunks.length > 1
-    ? `**Multi-Part Script Analysis**\n\n${breakdowns.join('\n\n---\n\n')}`
-    : breakdowns[0];
-
-  try {
-    const parsed = JSON.parse(combinedBreakdown);
-    return {
-      breakdown: parsed,
-      script_length: scriptContent.length,
-      chunks_processed: chunks.length,
-      type: 'script-breakdown'
-    };
-  } catch {
-    return {
-      breakdown: { raw_response: combinedBreakdown },
-      script_length: scriptContent.length,
-      chunks_processed: chunks.length,
-      type: 'script-breakdown'
+  // Combine and parse breakdowns
+  let finalBreakdown;
+  
+  if (chunks.length === 1) {
+    // Single chunk - parse directly
+    try {
+      // Extract JSON from response (Gemini sometimes adds markdown formatting)
+      let jsonText = breakdowns[0];
+      if (jsonText.includes('```json')) {
+        const start = jsonText.indexOf('```json') + 7;
+        const end = jsonText.lastIndexOf('```');
+        jsonText = jsonText.slice(start, end).trim();
+      } else if (jsonText.includes('```')) {
+        const start = jsonText.indexOf('```') + 3;
+        const end = jsonText.lastIndexOf('```');
+        jsonText = jsonText.slice(start, end).trim();
+      }
+      
+      finalBreakdown = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.warn('Failed to parse as JSON, returning as raw response:', parseError);
+      finalBreakdown = {
+        raw_response: breakdowns[0],
+        note: 'Response could not be parsed as structured JSON',
+        script_length: scriptContent.length
+      };
+    }
+  } else {
+    // Multiple chunks - merge results
+    const mergedScenes: any[] = [];
+    const mergedCharacters: any[] = [];
+    const mergedLocations: any[] = [];
+    const mergedProps: any[] = [];
+    let totalScenes = 0;
+    
+    for (const breakdown of breakdowns) {
+      try {
+        let jsonText = breakdown;
+        if (jsonText.includes('```json')) {
+          const start = jsonText.indexOf('```json') + 7;
+          const end = jsonText.lastIndexOf('```');
+          jsonText = jsonText.slice(start, end).trim();
+        } else if (jsonText.includes('```')) {
+          const start = jsonText.indexOf('```') + 3;
+          const end = jsonText.lastIndexOf('```');
+          jsonText = jsonText.slice(start, end).trim();
+        }
+        
+        const parsed = JSON.parse(jsonText);
+        if (parsed.scenes) mergedScenes.push(...parsed.scenes);
+        if (parsed.characters) mergedCharacters.push(...parsed.characters);
+        if (parsed.locations) mergedLocations.push(...parsed.locations);
+        if (parsed.props) mergedProps.push(...parsed.props);
+        totalScenes += parsed.summary?.total_scenes || 0;
+      } catch (e) {
+        console.warn('Failed to parse chunk, skipping:', e);
+      }
+    }
+    
+    finalBreakdown = {
+      scenes: mergedScenes,
+      characters: mergedCharacters,
+      locations: mergedLocations,
+      props: mergedProps,
+      summary: {
+        total_scenes: totalScenes || mergedScenes.length,
+        total_characters: mergedCharacters.length,
+        total_locations: mergedLocations.length,
+        total_props: mergedProps.length,
+        chunks_processed: chunks.length,
+        budget_estimate: 'MEDIUM'
+      }
     };
   }
+
+  return {
+    breakdown: finalBreakdown,
+    script_length: scriptContent.length,
+    chunks_processed: chunks.length,
+    model_used: 'google/gemini-2.5-flash',
+    ai_provider: 'lovable-ai',
+    type: 'script-breakdown'
+  };
 }
 
 async function processMeshJob(job: any) {
