@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Box, Download, Save, Trash2, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
@@ -158,58 +159,52 @@ export default function MeshGenerator() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
+    <div className="container mx-auto p-6 max-w-7xl bg-background">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Box className="h-8 w-8 text-primary" />
-            {t('mesh_generator', 'Reeva Mesh Generator')}
-            <Badge variant="secondary">Beta</Badge>
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-4xl font-bold flex items-center gap-3">
+            <Box className="h-10 w-10 text-primary" />
+            Hunyuan3D-2: High Resolution Textured 3D Assets Generation
           </h1>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-lg px-4 py-2">
-              <Sparkles className="h-4 w-4 mr-2" />
-              {credits} {t('credits', 'Credits')}
-            </Badge>
-          </div>
+          <Badge variant="outline" className="text-lg px-6 py-2 bg-primary/10">
+            <Sparkles className="h-5 w-5 mr-2" />
+            {credits} Credits
+          </Badge>
         </div>
-        <p className="text-muted-foreground">
-          {t('mesh_generator_desc', 'Generate quick 3D assets from text or images for your film or animation projects.')}
+        <p className="text-muted-foreground text-lg">
+          Turn any image into a perfect 3D model instantly for your film or animation projects
         </p>
+        <div className="flex gap-2 mt-3">
+          <a href="#" className="text-sm text-primary hover:underline">Github</a>
+          <a href="#" className="text-sm text-primary hover:underline">Homepage</a>
+          <a href="#" className="text-sm text-primary hover:underline">Technical Report</a>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Panel - Input Controls */}
-        <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Panel - Input & Controls */}
+        <div className="lg:col-span-1 space-y-4">
+          {/* Tabs for Image/Text Prompt */}
           <Card>
-            <CardHeader>
-              <CardTitle>{t('text_prompt', 'Text Prompt')}</CardTitle>
-              <CardDescription>
-                {t('text_prompt_desc', 'Describe the 3D model you want to create')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="prompt">{t('prompt', 'Prompt')}</Label>
-                <Input
-                  id="prompt"
-                  placeholder="e.g., A cute cartoon character with big eyes"
-                  value={promptInput}
-                  onChange={(e) => setPromptInput(e.target.value)}
-                />
+            <CardHeader className="pb-3">
+              <div className="flex gap-2 border-b">
+                <Button 
+                  variant="ghost" 
+                  className="rounded-none border-b-2 border-primary"
+                >
+                  Image Prompt
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="rounded-none opacity-50"
+                  disabled
+                >
+                  Text Prompt
+                </Button>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('image_prompt', 'Image Prompt')}</CardTitle>
-              <CardDescription>
-                {t('image_prompt_desc', 'Or upload a reference image')}
-              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               <FileUploadZone
                 bucket="vfx-assets"
                 acceptedFileTypes={['image']}
@@ -217,111 +212,162 @@ export default function MeshGenerator() {
                 onFileUploaded={handleFileUploaded}
               />
               {imageUrl && (
-                <div className="mt-4">
+                <div className="mt-4 rounded-lg overflow-hidden border">
                   <MediaPreview url={imageUrl} type="image" />
                 </div>
               )}
             </CardContent>
           </Card>
 
+          {/* Generate Button */}
+          <Button 
+            onClick={handleGenerate}
+            disabled={isGenerating || isPolling || !imageUrl}
+            className="w-full h-12 text-lg font-semibold"
+            size="lg"
+          >
+            {isGenerating || isPolling ? (
+              <>
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              'Gen Shape'
+            )}
+          </Button>
+
+          {/* Advanced Options */}
           <Card>
-            <CardHeader>
-              <CardTitle>{t('advanced_options', 'Advanced Options')}</CardTitle>
+            <CardHeader className="pb-3">
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" className="h-8">
+                  Advanced Options
+                </Button>
+                <Button variant="ghost" size="sm" className="h-8">
+                  Export
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="file-type">{t('file_type', 'File Type')}</Label>
-                <Select value={fileType} onValueChange={setFileType}>
-                  <SelectTrigger id="file-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="glb">GLB</SelectItem>
-                    <SelectItem value="obj">OBJ</SelectItem>
-                  </SelectContent>
-                </Select>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">File Type</Label>
+                <div className="flex items-center gap-2">
+                  <Select value={fileType} onValueChange={setFileType}>
+                    <SelectTrigger className="w-24 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="glb">glb</SelectItem>
+                      <SelectItem value="obj">obj</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Badge variant="outline" className="text-xs">Simplify Mesh</Badge>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="target-faces">{t('target_face_number', 'Target Face Number')}</Label>
-                  <span className="text-sm text-muted-foreground">{targetFaces.toLocaleString()}</span>
+                  <Label className="text-sm">Target Face Number</Label>
+                  <span className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                    {targetFaces.toLocaleString()}
+                  </span>
                 </div>
                 <Slider
-                  id="target-faces"
                   min={1000}
                   max={100000}
                   step={1000}
                   value={[targetFaces]}
                   onValueChange={(v) => setTargetFaces(v[0])}
+                  className="w-full"
                 />
               </div>
 
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between text-sm">
-                  <span>{t('estimated_time', 'Estimated Time')}:</span>
-                  <span className="font-medium">1-2 min</span>
-                </div>
-                <div className="flex items-center justify-between text-sm mt-2">
-                  <span>{t('credits_cost', 'Credits Cost')}:</span>
-                  <span className="font-medium">25 credits</span>
-                </div>
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" size="sm" className="flex-1">
+                  Transform
+                </Button>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={handleDownload}
+                  disabled={!modelUrl}
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Download
+                </Button>
               </div>
-
-              <Button 
-                onClick={handleGenerate}
-                disabled={isGenerating || isPolling || (!imageUrl && !promptInput)}
-                className="w-full"
-                size="lg"
-              >
-                {isGenerating || isPolling ? (
-                  <>
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    {t('generating', 'Generating...')}
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-5 w-5 mr-2" />
-                    {t('gen_shape', 'Gen Shape')}
-                  </>
-                )}
-              </Button>
             </CardContent>
           </Card>
         </div>
 
-        {/* Right Panel - 3D Viewer */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('generated_mesh', 'Generated Mesh')}</CardTitle>
+        {/* Right Panel - 3D Viewer with Tabs */}
+        <div className="lg:col-span-2">
+          <Card className="h-full">
+            <CardHeader className="pb-3">
+              <div className="flex gap-4 border-b">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="rounded-none border-b-2 border-primary"
+                >
+                  Generated Mesh
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="rounded-none opacity-50"
+                  disabled
+                >
+                  Exporting Mesh
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="rounded-none opacity-50"
+                  disabled
+                >
+                  Mesh Statistic
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="bg-secondary rounded-lg overflow-hidden" style={{ height: '500px' }}>
+              <div 
+                className="bg-gradient-to-br from-secondary to-secondary/50 rounded-lg overflow-hidden border-2 border-border" 
+                style={{ height: '600px' }}
+              >
                 {modelUrl ? (
-                  <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>
+                  <Canvas 
+                    camera={{ position: [0, 0, 3], fov: 60 }}
+                    style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%)' }}
+                  >
                     <Suspense fallback={null}>
-                      <Stage environment="city" intensity={0.6}>
-                        <Center>
-                          <Model url={modelUrl} />
-                        </Center>
-                      </Stage>
-                      <OrbitControls makeDefault />
+                      <ambientLight intensity={0.5} />
+                      <directionalLight position={[10, 10, 5]} intensity={1} />
+                      <directionalLight position={[-10, -10, -5]} intensity={0.3} />
+                      <Center>
+                        <Model url={modelUrl} />
+                      </Center>
+                      <OrbitControls 
+                        makeDefault 
+                        enableDamping
+                        dampingFactor={0.05}
+                      />
                     </Suspense>
                   </Canvas>
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
                     {isPolling ? (
                       <>
-                        <Loader2 className="h-16 w-16 animate-spin mb-4" />
-                        <p className="font-medium">{t('processing', 'Processing your request...')}</p>
-                        <p className="text-sm">{t('please_wait', 'This may take 1-2 minutes')}</p>
+                        <Loader2 className="h-20 w-20 animate-spin mb-6 text-primary" />
+                        <p className="text-xl font-semibold">Processing your request...</p>
+                        <p className="text-sm mt-2">Creating 3D mesh from your image</p>
                       </>
                     ) : (
                       <>
-                        <Box className="h-24 w-24 mb-4 opacity-20" />
-                        <p>{t('welcome_to_mesh', 'Welcome to Reeva Mesh!')}</p>
-                        <p className="text-sm">{t('no_mesh_here', 'No mesh here.')}</p>
+                        <Box className="h-32 w-32 mb-6 opacity-10" />
+                        <p className="text-2xl font-semibold">Welcome to Hunyuan3D!</p>
+                        <p className="text-sm mt-2 opacity-75">No mesh here.</p>
                       </>
                     )}
                   </div>
@@ -329,36 +375,27 @@ export default function MeshGenerator() {
               </div>
 
               {modelUrl && (
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                  <Button onClick={handleDownload} variant="default">
-                    <Download className="h-4 w-4 mr-2" />
-                    {t('download', 'Download')}
-                  </Button>
-                  <Button onClick={handleSaveToAssets} variant="outline">
+                <div className="flex gap-3 mt-4">
+                  <Button onClick={handleSaveToAssets} variant="outline" className="flex-1">
                     <Save className="h-4 w-4 mr-2" />
-                    {t('save_to_assets', 'Save to Assets')}
+                    Save to Assets
                   </Button>
-                  <Button onClick={handleClear} variant="outline" className="col-span-2">
+                  <Button onClick={handleClear} variant="outline" className="flex-1">
                     <Trash2 className="h-4 w-4 mr-2" />
-                    {t('clear', 'Clear')}
+                    Clear
                   </Button>
+                </div>
+              )}
+
+              {(currentJob?.error_message || (currentJob?.output_data as any)?.error) && (
+                <div className="mt-4 p-4 bg-destructive/10 border border-destructive rounded-lg">
+                  <p className="text-sm text-destructive font-medium">
+                    ⚠️ {currentJob.error_message || (currentJob?.output_data as any)?.error}
+                  </p>
                 </div>
               )}
             </CardContent>
           </Card>
-
-           {(currentJob?.error_message || (currentJob?.output_data as any)?.error) && (
-            <Card className="border-destructive">
-              <CardHeader>
-                <CardTitle className="text-destructive">{t('error', 'Error')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm">
-                  {currentJob.error_message || (currentJob?.output_data as any)?.error}
-                </p>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
     </div>

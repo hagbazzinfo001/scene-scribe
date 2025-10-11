@@ -495,9 +495,10 @@ async function processMeshJob(job: any) {
       replicateInput.prompt = prompt;
     }
 
-    console.log('Creating Replicate prediction for mesh generation with image:', imageUrl);
+    console.log('Creating mesh with camenduru/tripo-sr - confirmed working model');
+    console.log('Input image:', imageUrl);
     
-    // Use TripoSR - proven working image-to-3D model
+    // Use camenduru/tripo-sr - confirmed working on Replicate
     const response = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
@@ -505,9 +506,12 @@ async function processMeshJob(job: any) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: "eacf47b1-4d40-45dc-aaa2-65be6e122b1f",
+        version: "31be64a7c2523148c97ecc2246dc2e42e1dcf22",
         input: {
-          image_path: imageUrl
+          image_path: imageUrl,
+          mc_resolution: 256,
+          target_face_count: targetFaces,
+          texture_resolution: 1024
         }
       })
     });
