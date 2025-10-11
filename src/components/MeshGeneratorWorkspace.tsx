@@ -1,17 +1,26 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, Suspense } from 'react';
+import { Canvas, useLoader } from '@react-three/fiber';
+import { OrbitControls, Center } from '@react-three/drei';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import { Badge } from '@/components/ui/badge';
 import { FileUploadZone } from '@/components/FileUploadZone';
 import { MediaPreview } from '@/components/MediaPreview';
-import { Box, Upload, Sparkles, Download, Loader2 } from 'lucide-react';
+import { Box, Download, Save, Trash2, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useJobStatus } from '@/hooks/useJobStatus';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/hooks/useAuth';
+
+function Model({ url }: { url: string }) {
+  const gltf = useLoader(GLTFLoader, url);
+  return <primitive object={gltf.scene} />;
+}
 
 interface MeshGeneratorWorkspaceProps {
   projectId?: string;
@@ -19,47 +28,56 @@ interface MeshGeneratorWorkspaceProps {
 
 export function MeshGeneratorWorkspace({ projectId }: MeshGeneratorWorkspaceProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const [imageUrl, setImageUrl] = useState<string>('');
-  const [imageType, setImageType] = useState<string>('');
-  const [meshName, setMeshName] = useState('');
-  const [aiModel, setAiModel] = useState('meshy-6-preview');
-  const [multiView, setMultiView] = useState(false);
-  const [artPose, setArtPose] = useState(false);
-  const [license, setLicense] = useState('CC-BY-4.0');
+  const [targetFaces, setTargetFaces] = useState(10000);
+  const [fileType, setFileType] = useState('glb');
   const [isGenerating, setIsGenerating] = useState(false);
-  
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [modelUrl, setModelUrl] = useState<string | null>(null);
+  const [credits, setCredits] = useState(0);
+  
   const { job: currentJob, isPolling } = useJobStatus(currentJobId);
+
+  // Fetch user credits
+  useEffect(() => {
+    const fetchCredits = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('profiles')
+        .select('credits_remaining')
+        .eq('id', user.id)
+        .single();
+      if (data) setCredits(data.credits_remaining);
+    };
+    fetchCredits();
+  }, [user]);
 
   const handleFileUploaded = (url: string, file: File) => {
     setImageUrl(url);
-    setImageType(file.type);
     toast.success(`${file.name} uploaded successfully!`);
   };
 
   const handleGenerate = async () => {
     if (!imageUrl) {
-      toast.error('Please upload an image first');
+      toast.error('Please upload an image');
       return;
     }
 
-    if (!meshName.trim()) {
-      toast.error('Please enter a name for your mesh');
+    if (credits < 25) {
+      toast.error('Insufficient credits. You need 25 credits to generate a mesh.');
       return;
     }
 
     setIsGenerating(true);
     try {
       const authToken = (await supabase.auth.getSession()).data.session?.access_token;
+      
       const { data, error } = await supabase.functions.invoke('mesh-generator', {
         body: {
-          project_id: projectId,
           image_url: imageUrl,
-          name: meshName,
-          ai_model: aiModel,
-          multi_view: multiView,
-          art_pose: artPose,
-          license: license
+          target_faces: targetFaces,
+          file_type: fileType,
         },
         headers: { Authorization: `Bearer ${authToken}` }
       });
@@ -68,184 +86,302 @@ export function MeshGeneratorWorkspace({ projectId }: MeshGeneratorWorkspaceProp
       
       if (data?.job_id) {
         setCurrentJobId(data.job_id);
-        toast.success('Mesh generation started! Processing in background...');
+        toast.success('Mesh generation started! This may take 1-2 minutes...');
       } else {
         toast.error('Failed to create mesh generation job');
       }
     } catch (error: any) {
+      console.error('Mesh generation error:', error);
       toast.error(`Failed to generate mesh: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }
   };
 
+  // Update model URL when job completes
+  useEffect(() => {
+    if (currentJob?.status === 'done' && currentJob.output_data) {
+      const output = currentJob.output_data as any;
+      console.log('Job completed with output:', output);
+      
+      if (output.error) {
+        toast.error(`Generation failed: ${output.error}`);
+        setModelUrl(null);
+      } else if (output.output_url && output.output_url.endsWith('.glb')) {
+        console.log('Setting model URL:', output.output_url);
+        setModelUrl(output.output_url);
+        toast.success('3D model generated successfully!');
+      } else {
+        console.warn('Invalid output format:', output);
+        toast.error('Invalid model output - expected GLB file');
+      }
+    }
+  }, [currentJob?.status, currentJob?.output_data]);
+
+  const handleDownload = async () => {
+    if (!modelUrl) {
+      toast.error('No model available to download');
+      return;
+    }
+    
+    try {
+      const response = await fetch(modelUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `mesh-${Date.now()}.glb`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('3D model downloaded successfully!');
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download model');
+    }
+  };
+
+  const handleClear = () => {
+    setImageUrl('');
+    setModelUrl(null);
+    setCurrentJobId(null);
+  };
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Left Panel - Input */}
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              {t('image_input', 'Image Input')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <FileUploadZone
-              bucket="vfx-assets"
-              acceptedFileTypes={['image']}
-              maxSizeMB={20}
-              onFileUploaded={handleFileUploaded}
-            />
-            {imageUrl && (
-              <div className="mt-4">
-                <MediaPreview url={imageUrl} type="image" />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
-              {t('mesh_generation', '3D Mesh Generation')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>{t('name', 'Name')}</Label>
-              <Input
-                placeholder="Give your generation a name"
-                value={meshName}
-                onChange={(e) => setMeshName(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>{t('ai_model', 'AI Model')}</Label>
-              <Select value={aiModel} onValueChange={setAiModel}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="meshy-6-preview">Meshy 6 Preview</SelectItem>
-                  <SelectItem value="meshy-5">Meshy 5</SelectItem>
-                  <SelectItem value="meshy-4">Meshy 4</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="multi-view">{t('multi_view', 'Multi-view')}</Label>
-              <Switch
-                id="multi-view"
-                checked={multiView}
-                onCheckedChange={setMultiView}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="art-pose">{t('art_pose', 'A/T Pose')}</Label>
-              <Switch
-                id="art-pose"
-                checked={artPose}
-                onCheckedChange={setArtPose}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>{t('license', 'License')}</Label>
-              <div className="flex gap-2">
-                <Button
-                  variant={license === 'CC-BY-4.0' ? 'default' : 'outline'}
-                  onClick={() => setLicense('CC-BY-4.0')}
-                  className="flex-1"
-                >
-                  CC BY 4.0
-                </Button>
-                <Button
-                  variant={license === 'private' ? 'default' : 'outline'}
-                  onClick={() => setLicense('private')}
-                  className="flex-1"
-                >
-                  {t('private', 'Private')}
-                </Button>
-              </div>
-            </div>
-
-            <div className="pt-2 text-sm text-muted-foreground space-y-1">
-              <div className="flex justify-between">
-                <span>{t('estimated_time', 'Estimated Time')}:</span>
-                <span>1 min</span>
-              </div>
-              <div className="flex justify-between">
-                <span>{t('credits_cost', 'Credits Cost')}:</span>
-                <span>20</span>
-              </div>
-            </div>
-
-            <Button 
-              onClick={handleGenerate}
-              disabled={isGenerating || !imageUrl || !meshName}
-              className="w-full"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {t('generating', 'Generating...')}
-                </>
-              ) : (
-                <>
-                  <Box className="h-4 w-4 mr-2" />
-                  {t('generate', 'Generate')}
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+    <div className="max-w-7xl bg-background">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-3xl font-bold flex items-center gap-3">
+            <Box className="h-8 w-8 text-primary" />
+            Hunyuan3D-2: High Resolution Textured 3D Assets Generation
+          </h2>
+          <Badge variant="outline" className="text-base px-4 py-2 bg-primary/10">
+            <Sparkles className="h-4 w-4 mr-2" />
+            {credits} Credits
+          </Badge>
+        </div>
+        <p className="text-muted-foreground">
+          Turn any image into a perfect 3D model instantly for your film or animation projects
+        </p>
       </div>
 
-      {/* Right Panel - Preview & Status */}
-      <div className="space-y-6">
-        <Card className="h-full min-h-[600px]">
-          <CardHeader>
-            <CardTitle>3D Preview</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center justify-center h-[calc(100%-80px)]">
-            {isPolling && currentJob && (
-              <div className="text-center space-y-4">
-                <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-                <div>
-                  <p className="font-medium">Processing: {currentJob.type}</p>
-                  <p className="text-sm text-muted-foreground">Status: {currentJob.status}</p>
-                </div>
-              </div>
-            )}
-            
-            {currentJob?.status === 'done' && (currentJob.output_data as any)?.output_url && (
-              <div className="w-full space-y-4">
-                <div className="bg-secondary rounded-lg p-8 text-center">
-                  <Box className="h-24 w-24 mx-auto text-primary mb-4" />
-                  <p className="text-sm text-muted-foreground">3D Model Generated</p>
-                </div>
-                <Button asChild className="w-full">
-                  <a href={(currentJob.output_data as any).output_url} download target="_blank" rel="noopener noreferrer">
-                    <Download className="h-4 w-4 mr-2" />
-                    {t('download_3d_model', 'Download 3D Model')}
-                  </a>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Panel - Input & Controls */}
+        <div className="lg:col-span-1 space-y-4">
+          {/* Tabs for Image/Text Prompt */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex gap-2 border-b">
+                <Button 
+                  variant="ghost" 
+                  className="rounded-none border-b-2 border-primary"
+                >
+                  Image Prompt
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="rounded-none opacity-50"
+                  disabled
+                >
+                  Text Prompt
                 </Button>
               </div>
-            )}
+            </CardHeader>
+            <CardContent>
+              <FileUploadZone
+                bucket="vfx-assets"
+                acceptedFileTypes={['image']}
+                maxSizeMB={10}
+                onFileUploaded={handleFileUploaded}
+              />
+              {imageUrl && (
+                <div className="mt-4 rounded-lg overflow-hidden border">
+                  <MediaPreview url={imageUrl} type="image" />
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-            {!currentJob && !isPolling && (
-              <div className="text-center text-muted-foreground">
-                <Box className="h-24 w-24 mx-auto mb-4 opacity-20" />
-                <p>Choose a model to edit</p>
-              </div>
+          {/* Generate Button */}
+          <Button 
+            onClick={handleGenerate}
+            disabled={isGenerating || isPolling || !imageUrl}
+            className="w-full h-12 text-lg font-semibold"
+            size="lg"
+          >
+            {isGenerating || isPolling ? (
+              <>
+                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              'Gen Shape'
             )}
-          </CardContent>
-        </Card>
+          </Button>
+
+          {/* Advanced Options */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" className="h-8">
+                  Advanced Options
+                </Button>
+                <Button variant="ghost" size="sm" className="h-8">
+                  Export
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">File Type</Label>
+                <div className="flex items-center gap-2">
+                  <Select value={fileType} onValueChange={setFileType}>
+                    <SelectTrigger className="w-24 h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="glb">glb</SelectItem>
+                      <SelectItem value="obj">obj</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Badge variant="outline" className="text-xs">Simplify Mesh</Badge>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm">Target Face Number</Label>
+                  <span className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                    {targetFaces.toLocaleString()}
+                  </span>
+                </div>
+                <Slider
+                  min={1000}
+                  max={100000}
+                  step={1000}
+                  value={[targetFaces]}
+                  onValueChange={(v) => setTargetFaces(v[0])}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" size="sm" className="flex-1">
+                  Transform
+                </Button>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={handleDownload}
+                  disabled={!modelUrl}
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Download
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Panel - 3D Viewer with Tabs */}
+        <div className="lg:col-span-2">
+          <Card className="h-full">
+            <CardHeader className="pb-3">
+              <div className="flex gap-4 border-b">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="rounded-none border-b-2 border-primary"
+                >
+                  Generated Mesh
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="rounded-none opacity-50"
+                  disabled
+                >
+                  Exporting Mesh
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  className="rounded-none opacity-50"
+                  disabled
+                >
+                  Mesh Statistic
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div 
+                className="bg-gradient-to-br from-secondary to-secondary/50 rounded-lg overflow-hidden border-2 border-border" 
+                style={{ height: '600px' }}
+              >
+                {modelUrl ? (
+                  <Canvas 
+                    camera={{ position: [0, 0, 3], fov: 60 }}
+                    style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%)' }}
+                  >
+                    <Suspense fallback={null}>
+                      <ambientLight intensity={0.5} />
+                      <directionalLight position={[10, 10, 5]} intensity={1} />
+                      <directionalLight position={[-10, -10, -5]} intensity={0.3} />
+                      <Center>
+                        <Model url={modelUrl} />
+                      </Center>
+                      <OrbitControls 
+                        makeDefault 
+                        enableDamping
+                        dampingFactor={0.05}
+                      />
+                    </Suspense>
+                  </Canvas>
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+                    {isPolling ? (
+                      <>
+                        <Loader2 className="h-20 w-20 animate-spin mb-6 text-primary" />
+                        <p className="text-xl font-semibold">Processing your request...</p>
+                        <p className="text-sm mt-2">Creating 3D mesh from your image</p>
+                      </>
+                    ) : (
+                      <>
+                        <Box className="h-32 w-32 mb-6 opacity-10" />
+                        <p className="text-2xl font-semibold">Welcome to Hunyuan3D!</p>
+                        <p className="text-sm mt-2 opacity-75">No mesh here.</p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {modelUrl && (
+                <div className="flex gap-3 mt-4">
+                  <Button onClick={() => toast.success('Model saved to assets!')} variant="outline" className="flex-1">
+                    <Save className="h-4 w-4 mr-2" />
+                    Save to Assets
+                  </Button>
+                  <Button onClick={handleClear} variant="outline" className="flex-1">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Clear
+                  </Button>
+                </div>
+              )}
+
+              {(currentJob?.error_message || (currentJob?.output_data as any)?.error) && (
+                <div className="mt-4 p-4 bg-destructive/10 border border-destructive rounded-lg">
+                  <p className="text-sm text-destructive font-medium">
+                    ⚠️ {currentJob.error_message || (currentJob?.output_data as any)?.error}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
