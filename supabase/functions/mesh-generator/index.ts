@@ -37,16 +37,36 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { project_id, image_url, name } = body;
+    const { project_id, image_url, prompt, target_faces, file_type, simplify } = body;
 
-    if (!image_url) {
+    if (!image_url && !prompt) {
       return new Response(
-        JSON.stringify({ error: 'image_url is required' }),
+        JSON.stringify({ error: 'Either image_url or prompt is required' }),
         { status: 400, headers: corsHeaders }
       );
     }
 
-    console.log('Creating mesh generation job for:', image_url);
+    // Check user credits
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('credits_remaining')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile || profile.credits_remaining < 25) {
+      return new Response(
+        JSON.stringify({ error: 'Insufficient credits. Need 25 credits.' }),
+        { status: 402, headers: corsHeaders }
+      );
+    }
+
+    // Deduct credits
+    await supabase
+      .from('profiles')
+      .update({ credits_remaining: profile.credits_remaining - 25 })
+      .eq('id', user.id);
+
+    console.log('Creating mesh generation job for:', { image_url, prompt });
 
     // Create job record
     const { data: job, error: jobError } = await supabase
@@ -56,7 +76,13 @@ serve(async (req) => {
         project_id: project_id,
         type: 'mesh',
         status: 'pending',
-        input_data: { image_url, name: name || 'mesh-model' }
+        input_data: { 
+          image_url, 
+          prompt,
+          target_faces: target_faces || 10000,
+          file_type: file_type || 'glb',
+          simplify: simplify || false
+        }
       })
       .select()
       .single();

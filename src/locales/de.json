@@ -162,4 +162,18 @@
   "track_forward": "Vorwärts verfolgen",
   "apply_edits": "Bearbeitungen anwenden",
   "reset_all": "Alles zurücksetzen"
+  "mesh_generator": "Reeva Mesh Generator",
+  "mesh_generator_desc": "Generieren Sie schnell 3D-Assets aus Text oder Bildern für Ihre Film- oder Animationsprojekte.",
+  "text_prompt": "Text-Eingabe",
+  "text_prompt_desc": "Beschreiben Sie das 3D-Modell, das Sie erstellen möchten",
+  "image_prompt": "Bild-Eingabe",
+  "image_prompt_desc": "Oder laden Sie ein Referenzbild hoch",
+  "gen_shape": "Form generieren",
+  "target_face_number": "Ziel-Flächenanzahl",
+  "generated_mesh": "Generiertes Mesh",
+  "processing": "Ihre Anfrage wird verarbeitet...",
+  "please_wait": "Dies kann 1-2 Minuten dauern",
+  "save_to_assets": "In Assets speichern",
+  "welcome_to_mesh": "Willkommen bei Reeva Mesh!",
+  "no_mesh_here": "Kein Mesh hier."
 }

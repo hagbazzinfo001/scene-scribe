@@ -166,5 +166,19 @@
   "add_keyframe": "Add Keyframe",
   "track_forward": "Track Forward",
   "apply_edits": "Apply Edits",
-  "reset_all": "Reset All"
+  "reset_all": "Reset All",
+  "mesh_generator": "Reeva Mesh Generator",
+  "mesh_generator_desc": "Generate quick 3D assets from text or images for your film or animation projects.",
+  "text_prompt": "Text Prompt",
+  "text_prompt_desc": "Describe the 3D model you want to create",
+  "image_prompt": "Image Prompt",
+  "image_prompt_desc": "Or upload a reference image",
+  "gen_shape": "Gen Shape",
+  "target_face_number": "Target Face Number",
+  "generated_mesh": "Generated Mesh",
+  "processing": "Processing your request...",
+  "please_wait": "This may take 1-2 minutes",
+  "save_to_assets": "Save to Assets",
+  "welcome_to_mesh": "Welcome to Reeva Mesh!",
+  "no_mesh_here": "No mesh here."
 }
