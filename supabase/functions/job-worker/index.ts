@@ -495,9 +495,9 @@ async function processMeshJob(job: any) {
       replicateInput.prompt = prompt;
     }
 
-    console.log('Creating Replicate prediction for mesh generation using Hunyuan3D-2...');
+    console.log('Creating Replicate prediction for mesh generation...');
     
-    // Use Hunyuan3D-2 model on Replicate
+    // Use TripoSR for image-to-3D generation (stable and working model)
     const response = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
@@ -505,8 +505,8 @@ async function processMeshJob(job: any) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: "88c84a6e4feb76bec006aaf948166ce80a01e52b1f7cbb74f1ac32fe60a60df3", // Hunyuan3D-2
-        input: replicateInput
+        version: "eacf47b1-4d40-45dc-aaa2-65be6e122b1f", // TripoSR model - stable image-to-3D
+        input: imageUrl ? { image_path: imageUrl } : { prompt: prompt }
       })
     });
 
@@ -517,10 +517,10 @@ async function processMeshJob(job: any) {
 
     console.log('Created Replicate prediction:', prediction.id);
 
-    // Poll for completion (Hunyuan3D-2 can take longer)
+    // Poll for completion
     let result = prediction;
     let attempts = 0;
-    const maxAttempts = 120; // 10 minutes max
+    const maxAttempts = 60; // 5 minutes max
     
     while (result.status === 'starting' || result.status === 'processing') {
       if (attempts >= maxAttempts) {
@@ -541,12 +541,22 @@ async function processMeshJob(job: any) {
       throw new Error(`Mesh generation failed: ${result.error}`);
     }
 
-    // Hunyuan3D-2 returns object with 'model' property containing GLB URL
-    const glbUrl = typeof result.output === 'string' ? result.output : result.output?.model;
+    // Extract GLB URL from output
+    let glbUrl = null;
+    if (typeof result.output === 'string') {
+      glbUrl = result.output;
+    } else if (Array.isArray(result.output) && result.output.length > 0) {
+      glbUrl = result.output[0];
+    } else if (result.output?.model) {
+      glbUrl = result.output.model;
+    }
     
     if (!glbUrl) {
+      console.error('Replicate output:', result.output);
       throw new Error('No GLB output URL found in Replicate response');
     }
+    
+    console.log('Generated 3D model URL:', glbUrl);
 
     console.log('Mesh generation succeeded, downloading from:', glbUrl);
     

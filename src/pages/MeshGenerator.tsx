@@ -104,8 +104,12 @@ export default function MeshGenerator() {
   useState(() => {
     if (currentJob?.status === 'done' && currentJob.output_data) {
       const output = currentJob.output_data as any;
-      if (output.output_url) {
+      console.log('Job completed with output:', output);
+      if (output.output_url && !output.error) {
         setModelUrl(output.output_url);
+        toast.success('3D model generated successfully!');
+      } else if (output.error) {
+        toast.error(`Generation failed: ${output.error}`);
       }
     }
   });
@@ -318,13 +322,15 @@ export default function MeshGenerator() {
             </CardContent>
           </Card>
 
-          {currentJob?.error_message && (
+           {(currentJob?.error_message || (currentJob?.output_data as any)?.error) && (
             <Card className="border-destructive">
               <CardHeader>
                 <CardTitle className="text-destructive">{t('error', 'Error')}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm">{currentJob.error_message}</p>
+                <p className="text-sm">
+                  {currentJob.error_message || (currentJob?.output_data as any)?.error}
+                </p>
               </CardContent>
             </Card>
           )}
