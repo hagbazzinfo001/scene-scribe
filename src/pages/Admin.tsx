@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Users, 
   Database, 
@@ -20,7 +21,10 @@ import {
   XCircle,
   Trash2,
   RefreshCw,
-  Save
+  Save,
+  Wallet,
+  Plus,
+  Minus
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -30,6 +34,8 @@ export default function Admin() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [selectedTab, setSelectedTab] = useState('overview');
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
+  const [creditAmount, setCreditAmount] = useState<string>('100');
 
   // Admin authentication check - Allow any logged in user for testing
   const isAdmin = !!user;
@@ -55,7 +61,7 @@ export default function Admin() {
     queryKey: ['admin-stats'],
     queryFn: async () => {
       const [usersResult, projectsResult, jobsResult, assetsResult] = await Promise.allSettled([
-        supabase.from('profiles').select('id, created_at').order('created_at', { ascending: false }),
+        supabase.from('profiles').select('id, email, full_name, credits_remaining, credits_used, created_at').order('created_at', { ascending: false }),
         supabase.from('projects').select('id, created_at, name').order('created_at', { ascending: false }),
         supabase.from('jobs').select('id, status, type, created_at').order('created_at', { ascending: false }),
         supabase.from('user_assets').select('id, file_type, file_size, created_at').order('created_at', { ascending: false })
@@ -124,6 +130,47 @@ export default function Admin() {
     }
   });
 
+  // Credit management mutations
+  const addCreditsMutation = useMutation({
+    mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
+      const { data, error } = await supabase.rpc('add_user_credits', {
+        p_user_id: userId,
+        p_amount: amount
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+      toast.success('Credits added successfully');
+      setCreditAmount('100');
+      setSelectedUserId('');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to add credits: ${error.message}`);
+    }
+  });
+
+  const deductCreditsMutation = useMutation({
+    mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
+      const { data, error } = await supabase.rpc('deduct_user_credits', {
+        p_user_id: userId,
+        p_amount: amount
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+      toast.success('Credits deducted successfully');
+      setCreditAmount('100');
+      setSelectedUserId('');
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to deduct credits: ${error.message}`);
+    }
+  });
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'success':
@@ -153,9 +200,10 @@ export default function Admin() {
       </div>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="users">{t('users')}</TabsTrigger>
+          <TabsTrigger value="wallet">Wallet</TabsTrigger>
           <TabsTrigger value="jobs">Jobs</TabsTrigger>
           <TabsTrigger value="system">System</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
@@ -285,15 +333,167 @@ export default function Admin() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {stats?.users.slice(0, 10).map((user) => (
+                {stats?.users.slice(0, 10).map((user: any) => (
                   <div key={user.id} className="flex items-center justify-between border-b pb-2">
                     <div>
-                      <p className="text-sm font-medium">{user.id}</p>
+                      <p className="text-sm font-medium">{user.email || user.id}</p>
                       <p className="text-xs text-muted-foreground">
-                        Joined: {new Date(user.created_at).toLocaleDateString()}
+                        Joined: {new Date(user.created_at).toLocaleDateString()} • Credits: {user.credits_remaining || 0}
                       </p>
                     </div>
                     <Badge variant="secondary">Active</Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="wallet" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Credits Issued</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats?.users.reduce((acc: number, u: any) => acc + (u.credits_remaining || 0) + (u.credits_used || 0), 0) || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Across {stats?.users.length || 0} users
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Credits Used</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats?.users.reduce((acc: number, u: any) => acc + (u.credits_used || 0), 0) || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Platform-wide usage
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Credits Remaining</CardTitle>
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats?.users.reduce((acc: number, u: any) => acc + (u.credits_remaining || 0), 0) || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Available for use
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Credit Management</CardTitle>
+              <p className="text-sm text-muted-foreground">Add or deduct credits for users</p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Select User</Label>
+                  <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a user..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stats?.users.map((user: any) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.email || user.full_name || user.id.slice(0, 8)} • {user.credits_remaining || 0} credits
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Credit Amount</Label>
+                  <Input
+                    type="number"
+                    value={creditAmount}
+                    onChange={(e) => setCreditAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    min="1"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    if (!selectedUserId || !creditAmount) {
+                      toast.error('Please select a user and enter an amount');
+                      return;
+                    }
+                    addCreditsMutation.mutate({
+                      userId: selectedUserId,
+                      amount: parseInt(creditAmount)
+                    });
+                  }}
+                  disabled={addCreditsMutation.isPending || !selectedUserId || !creditAmount}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Credits
+                </Button>
+
+                <Button
+                  onClick={() => {
+                    if (!selectedUserId || !creditAmount) {
+                      toast.error('Please select a user and enter an amount');
+                      return;
+                    }
+                    deductCreditsMutation.mutate({
+                      userId: selectedUserId,
+                      amount: parseInt(creditAmount)
+                    });
+                  }}
+                  disabled={deductCreditsMutation.isPending || !selectedUserId || !creditAmount}
+                  variant="destructive"
+                >
+                  <Minus className="h-4 w-4 mr-2" />
+                  Deduct Credits
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>User Credit Balances</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {stats?.users.map((user: any) => (
+                  <div key={user.id} className="flex items-center justify-between border-b pb-3">
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{user.email || user.full_name || 'No name'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Used: {user.credits_used || 0} credits
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <Badge className={
+                        (user.credits_remaining || 0) > 100 ? 'bg-green-100 text-green-800' :
+                        (user.credits_remaining || 0) > 50 ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }>
+                        {user.credits_remaining || 0} remaining
+                      </Badge>
+                    </div>
                   </div>
                 ))}
               </div>
