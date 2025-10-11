@@ -49,12 +49,18 @@ serve(async (req) => {
 
     console.log('Processing roto for:', videoUrl)
 
+    // Validate projectId is a valid UUID or null
+    let validProjectId = null
+    if (projectId && projectId !== ':projectId' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId)) {
+      validProjectId = projectId
+    }
+
     // Create job record with pending status so job-worker picks it up
     const { data: job, error: jobError } = await supabase
       .from('jobs')
       .insert({
         user_id: user.id,
-        project_id: projectId,
+        project_id: validProjectId,
         type: 'roto',
         status: 'pending',
         input_data: { file_url: videoUrl, description, frame_range: frameRange }

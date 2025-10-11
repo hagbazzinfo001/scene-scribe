@@ -495,10 +495,10 @@ async function processMeshJob(job: any) {
       replicateInput.prompt = prompt;
     }
 
-    console.log('Creating mesh with camenduru/tripo-sr - confirmed working model');
+    console.log('Creating mesh with TRELLIS - latest working model for 2025');
     console.log('Input image:', imageUrl);
     
-    // Use camenduru/tripo-sr - confirmed working on Replicate
+    // Use firtoz/trellis - latest working image-to-3D model
     const response = await fetch('https://api.replicate.com/v1/predictions', {
       method: 'POST',
       headers: {
@@ -506,12 +506,12 @@ async function processMeshJob(job: any) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        version: "31be64a7c2523148c97ecc2246dc2e42e1dcf22",
+        version: "4876f2a8da1c544772dffa32e8889da4a1bab3a1f5c1937bfcfccb99ae347251",
         input: {
-          image_path: imageUrl,
-          mc_resolution: 256,
-          target_face_count: targetFaces,
-          texture_resolution: 1024
+          image: imageUrl,
+          seed: 42,
+          slat_sampler_params_scale: 0.005,
+          slat_sampler_params_steps: 12
         }
       })
     });
