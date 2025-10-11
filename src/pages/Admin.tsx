@@ -133,9 +133,8 @@ export default function Admin() {
   // Credit management mutations
   const addCreditsMutation = useMutation({
     mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
-      const { data, error } = await supabase.rpc('add_user_credits', {
-        p_user_id: userId,
-        p_amount: amount
+      const { data, error } = await supabase.functions.invoke('manage-credits', {
+        body: { action: 'add', userId, amount }
       });
       if (error) throw error;
       return data;
@@ -153,9 +152,8 @@ export default function Admin() {
 
   const deductCreditsMutation = useMutation({
     mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
-      const { data, error } = await supabase.rpc('deduct_user_credits', {
-        p_user_id: userId,
-        p_amount: amount
+      const { data, error } = await supabase.functions.invoke('manage-credits', {
+        body: { action: 'deduct', userId, amount }
       });
       if (error) throw error;
       return data;

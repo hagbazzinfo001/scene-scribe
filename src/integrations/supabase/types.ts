@@ -826,6 +826,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_user_credits: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: undefined
+      }
+      deduct_user_credits: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: undefined
+      }
       delete_user_asset: {
         Args: { asset_id: string }
         Returns: Json
