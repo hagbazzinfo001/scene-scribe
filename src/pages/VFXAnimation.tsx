@@ -18,7 +18,7 @@ import { MediaPreview } from '@/components/MediaPreview';
 import { ImportAssetDropzone } from '@/components/ImportAssetDropzone';
 import { AssetLibrary } from '@/components/AssetLibrary';
 import { RotoTrackingResults } from '@/components/RotoTrackingResults';
-import { MeshGeneratorWorkspace } from '@/components/MeshGeneratorWorkspace';
+// MeshGeneratorWorkspace removed - now a standalone page at /mesh-generator
 import { RotoEditingWorkspace } from '@/components/RotoEditingWorkspace';
 import { AdvancedColorGrading } from '@/components/AdvancedColorGrading';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -266,9 +266,20 @@ export default function VFXAnimation() {
           </div>
         </TabsContent>
 
-        {/* Mesh Tab */}
+        {/* Mesh Tab - Redirects to standalone page */}
         <TabsContent value="mesh" className="space-y-6">
-          <MeshGeneratorWorkspace projectId={projectId} />
+          <Card>
+            <CardContent className="p-12 text-center">
+              <Box className="h-16 w-16 mx-auto mb-4 text-primary opacity-50" />
+              <h3 className="text-xl font-semibold mb-2">3D Generator</h3>
+              <p className="text-muted-foreground mb-4">
+                The 3D Generator is now a standalone page with enhanced features
+              </p>
+              <Button onClick={() => window.location.href = '/mesh-generator'}>
+                Open 3D Generator
+              </Button>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Color Grading Tab */}
