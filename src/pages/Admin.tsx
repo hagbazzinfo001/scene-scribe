@@ -37,8 +37,46 @@ export default function Admin() {
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [creditAmount, setCreditAmount] = useState<string>('100');
 
-  // Admin authentication check - Allow any logged in user for testing
-  const isAdmin = !!user;
+  // Check if user has admin role from database
+  const { data: userRoles, isLoading: rolesLoading } = useQuery({
+    queryKey: ["user-roles", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const isAdmin = userRoles?.some((r) => r.role === "admin") ?? false;
+
+  if (!user) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Card className="w-[400px]">
+          <CardContent className="pt-6 text-center">
+            <p className="text-muted-foreground">Please sign in to access the admin dashboard.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (rolesLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Card className="w-[400px]">
+          <CardContent className="pt-6 text-center">
+            <p className="text-muted-foreground">Verifying permissions...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!isAdmin) {
     return (

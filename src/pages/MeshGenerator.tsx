@@ -1,7 +1,7 @@
 import { useState, Suspense, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Center } from '@react-three/drei';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,11 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import { Box, Download, Save, Trash2, Loader2, Image as ImageIcon, Type, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { useLoader } from '@react-three/fiber';
 
-// Test user whitelist
-const ALLOWED_USERS = ['admin', 'tester1', 'tester2'];
+// Removed hardcoded user whitelist - now using database feature flags
 
 // Mock 3D generation function
 const generate3D = async (inputType: 'text' | 'image', promptOrImage: string): Promise<{
@@ -67,6 +68,23 @@ export default function MeshGenerator() {
   const [savedModels, setSavedModels] = useState<GeneratedModel[]>([]);
   const [activeTab, setActiveTab] = useState('text-to-3d');
 
+  // Check feature flag access from database
+  const { data: featureAccess, isLoading: accessLoading } = useQuery({
+    queryKey: ["feature-access", user?.id, "mesh_generator"],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { data, error } = await supabase
+        .from("feature_flags")
+        .select("enabled")
+        .eq("user_id", user.id)
+        .eq("feature_name", "mesh_generator")
+        .single();
+      if (error) return false;
+      return data?.enabled ?? false;
+    },
+    enabled: !!user?.id,
+  });
+
   // Load saved models from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('nolly_generated_models');
@@ -78,12 +96,6 @@ export default function MeshGenerator() {
       }
     }
   }, []);
-
-  // Check user access
-  const hasAccess = user?.email && (
-    ALLOWED_USERS.includes(user.email.split('@')[0]) || 
-    user.email.includes('admin')
-  );
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -98,8 +110,8 @@ export default function MeshGenerator() {
   };
 
   const handleGenerate = async (type: 'text' | 'image') => {
-    if (!hasAccess) {
-      toast.error('Testing Access Only - Contact admin for access');
+    if (!featureAccess) {
+      toast.error('Access denied - Contact admin for feature access');
       return;
     }
 
@@ -175,24 +187,38 @@ export default function MeshGenerator() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a]">
-        <Card className="p-8 bg-[#1a1a1a] border-[#00ff99]/20">
-          <p className="text-xl text-center">Please sign in to access the 3D Generator</p>
+      <div className="min-h-screen bg-background flex items-center justify-center p-8">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground">Please sign in to access the 3D Generator</p>
+          </CardContent>
         </Card>
       </div>
     );
   }
 
-  if (!hasAccess) {
+  if (accessLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a]">
-        <Card className="p-8 bg-[#1a1a1a] border-[#00ff99]/20">
-          <div className="text-center space-y-4">
-            <Box className="h-16 w-16 mx-auto text-[#00ff99]" />
-            <h2 className="text-2xl font-bold text-white">Testing Access Only</h2>
-            <p className="text-gray-400">This feature is currently in closed beta for 3 test users.</p>
-            <p className="text-sm text-gray-500">Contact admin@nollyai.com for access.</p>
-          </div>
+      <div className="min-h-screen bg-background flex items-center justify-center p-8">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground">Verifying access...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!featureAccess) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-8">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-destructive">Access Restricted</CardTitle>
+            <CardDescription>
+              This feature is currently in closed testing. Contact admin for access.
+            </CardDescription>
+          </CardHeader>
         </Card>
       </div>
     );

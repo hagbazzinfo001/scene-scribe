@@ -45,7 +45,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.script-breakdown-free]
-verify_jwt = false
+verify_jwt = true
 
 [functions.simple-roto]
 verify_jwt = true
@@ -78,4 +78,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.mesh-generator]
+verify_jwt = true
+
+[functions.manage-credits]
 verify_jwt = true
