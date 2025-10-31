@@ -7,7 +7,8 @@ import {
   Film,
   Plus,
   Users,
-  Shield
+  Shield,
+  FileText
 } from "lucide-react";
 import {
   Sidebar,
@@ -28,6 +29,7 @@ import { useQuery } from "@tanstack/react-query";
 
 const navigationItems = [
   { title: "Projects", url: "/dashboard", icon: FolderOpen },
+  { title: "Script Breakdown", url: "/script-breakdown", icon: FileText },
   { title: "AI Assistant Chat", url: "/ai-chat", icon: Users },
   { title: "Audio Cleanup", url: "/audio-cleanup", icon: Film },
   { title: "VFX & Animation", url: "/vfx-animation", icon: Plus },

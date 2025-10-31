@@ -150,30 +150,52 @@ export type Database = {
       }
       breakdowns: {
         Row: {
-          content: Json
+          breakdown: Json
+          content: Json | null
           created_at: string | null
           id: string
-          script_id: string
-          type: string
+          original_filename: string | null
+          project_id: string | null
+          raw_text: string | null
+          script_id: string | null
+          type: string | null
           updated_at: string | null
+          user_id: string
         }
         Insert: {
-          content: Json
+          breakdown?: Json
+          content?: Json | null
           created_at?: string | null
           id?: string
-          script_id: string
-          type: string
+          original_filename?: string | null
+          project_id?: string | null
+          raw_text?: string | null
+          script_id?: string | null
+          type?: string | null
           updated_at?: string | null
+          user_id: string
         }
         Update: {
-          content?: Json
+          breakdown?: Json
+          content?: Json | null
           created_at?: string | null
           id?: string
-          script_id?: string
-          type?: string
+          original_filename?: string | null
+          project_id?: string | null
+          raw_text?: string | null
+          script_id?: string | null
+          type?: string | null
           updated_at?: string | null
+          user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "breakdowns_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "breakdowns_script_id_fkey"
             columns: ["script_id"]
@@ -630,6 +652,41 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      translations: {
+        Row: {
+          breakdown_id: string | null
+          created_at: string | null
+          file_path: string | null
+          id: string
+          language: string
+          translated_text: string
+        }
+        Insert: {
+          breakdown_id?: string | null
+          created_at?: string | null
+          file_path?: string | null
+          id?: string
+          language: string
+          translated_text: string
+        }
+        Update: {
+          breakdown_id?: string | null
+          created_at?: string | null
+          file_path?: string | null
+          id?: string
+          language?: string
+          translated_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "translations_breakdown_id_fkey"
+            columns: ["breakdown_id"]
+            isOneToOne: false
+            referencedRelation: "breakdowns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_assets: {
         Row: {

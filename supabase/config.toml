@@ -82,3 +82,6 @@ verify_jwt = true
 
 [functions.manage-credits]
 verify_jwt = true
+
+[functions.script-breakdown-translate]
+verify_jwt = true

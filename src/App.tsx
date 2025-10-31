@@ -15,6 +15,7 @@ import AIChat from "./pages/AIChat";
 import AudioCleanup from "./pages/AudioCleanup";
 import VFXAnimation from "./pages/VFXAnimation";
 import MeshGenerator from "./pages/MeshGenerator";
+import ScriptBreakdown from "./pages/ScriptBreakdown";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -74,6 +75,7 @@ const App = () => (
                 <Route path="/vfx-animation" element={<VFXAnimation />} />
                 <Route path="/vfx-animation/:projectId" element={<VFXAnimation />} />
                 <Route path="/mesh-generator" element={<MeshGenerator />} />
+                <Route path="/script-breakdown" element={<ScriptBreakdown />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/admin" element={<Admin />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
