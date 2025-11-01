@@ -92,8 +92,8 @@ export function AppSidebar() {
                       to={item.url} 
                       className={getNavClass(item.url)}
                     >
-                      <item.icon className="h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                      <item.icon />
+                      <span>{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -114,10 +114,8 @@ export function AppSidebar() {
                         to={`/project/${project.id}`}
                         className={getNavClass(`/project/${project.id}`)}
                       >
-                        <FolderOpen className="h-4 w-4" />
-                        {!collapsed && (
-                          <span className="truncate">{project.name}</span>
-                        )}
+                        <FolderOpen />
+                        <span className="truncate">{project.name}</span>
                       </NavLink>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -132,8 +130,8 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton onClick={signOut}>
-                  <LogOut className="h-4 w-4" />
-                  {!collapsed && <span>Sign Out</span>}
+                  <LogOut />
+                  <span>Sign Out</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
