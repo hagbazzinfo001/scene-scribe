@@ -53,6 +53,8 @@
   "translation_desc": "Multi-language support for scripts and subtitles with AI",
   "export_formats": "Export Formats",
   "export_formats_desc": "Export your projects in PDF, CSV, JSON, and more",
+  "roto_beta": "AI Roto-Beta",
+  "roto_beta_desc": "Isolate actors and props from shots, ready for compositing",
   "ready_to_streamline": "Ready to streamline your film production?",
   "join_hundreds": "Join hundreds of Nollywood filmmakers who've simplified their pre-production process.",
   "join_waitlist": "Join Waitlist",

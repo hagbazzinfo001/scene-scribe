@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Film, Zap, Users, FileText, BarChart3, Rocket, Sparkles, Calendar, DollarSign, MessageSquare, Languages, Box, Globe2, FileDown } from 'lucide-react';
+import { Film, Zap, Users, FileText, BarChart3, Rocket, Sparkles, Calendar, DollarSign, MessageSquare, Languages, Box, Globe2, FileDown, Layers } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from 'react-i18next';
 import { LanguageToggle } from '@/components/LanguageToggle';
@@ -217,6 +217,16 @@ const Index = () => {
                   <h3 className="text-2xl font-semibold mb-3">{t('export_formats')}</h3>
                   <p className="text-muted-foreground text-lg">
                     {t('export_formats_desc')}
+                  </p>
+                </div>
+              </CarouselItem>
+              
+              <CarouselItem>
+                <div className="text-center p-12 rounded-lg border bg-card/50 backdrop-blur">
+                  <Layers className="h-16 w-16 text-primary mx-auto mb-4" />
+                  <h3 className="text-2xl font-semibold mb-3">{t('roto_beta')}</h3>
+                  <p className="text-muted-foreground text-lg">
+                    {t('roto_beta_desc')}
                   </p>
                 </div>
               </CarouselItem>
