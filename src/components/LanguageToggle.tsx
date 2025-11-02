@@ -11,7 +11,8 @@ export function LanguageToggle({ variant = 'full' }: LanguageToggleProps) {
   const { i18n, t } = useTranslation();
 
   const toggleLanguage = () => {
-    const newLang = i18n.language === 'en' ? 'de' : 'en';
+    const currentLang = i18n.language;
+    const newLang = currentLang === 'en' ? 'de' : currentLang === 'de' ? 'fr' : 'en';
     i18n.changeLanguage(newLang);
     try { localStorage.setItem('language', newLang); } catch {}
   };
@@ -22,7 +23,10 @@ export function LanguageToggle({ variant = 'full' }: LanguageToggleProps) {
         <Button
           variant={i18n.language === 'en' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => i18n.changeLanguage('en')}
+          onClick={() => {
+            i18n.changeLanguage('en');
+            try { localStorage.setItem('language', 'en'); } catch {}
+          }}
           className="px-2 py-1 text-xs"
         >
           EN
@@ -30,10 +34,24 @@ export function LanguageToggle({ variant = 'full' }: LanguageToggleProps) {
         <Button
           variant={i18n.language === 'de' ? 'default' : 'outline'}
           size="sm"
-          onClick={() => i18n.changeLanguage('de')}
+          onClick={() => {
+            i18n.changeLanguage('de');
+            try { localStorage.setItem('language', 'de'); } catch {}
+          }}
           className="px-2 py-1 text-xs"
         >
           DE
+        </Button>
+        <Button
+          variant={i18n.language === 'fr' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => {
+            i18n.changeLanguage('fr');
+            try { localStorage.setItem('language', 'fr'); } catch {}
+          }}
+          className="px-2 py-1 text-xs"
+        >
+          FR
         </Button>
       </div>
     );
@@ -47,7 +65,7 @@ export function LanguageToggle({ variant = 'full' }: LanguageToggleProps) {
       className="flex items-center gap-2"
     >
       <Globe className="h-4 w-4" />
-      {i18n.language === 'en' ? t('german') : t('english')}
+      {i18n.language === 'en' ? t('german') : i18n.language === 'de' ? t('french') : t('english')}
     </Button>
   );
 }
