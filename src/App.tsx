@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Waitlist from "./pages/Waitlist";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import ProjectWorkspace from "./pages/ProjectWorkspace";
@@ -67,6 +68,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/waitlist" element={<Waitlist />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/project/:id" element={<ProjectWorkspace />} />
                 {/* Removed legacy /project/:projectId/import route */}
