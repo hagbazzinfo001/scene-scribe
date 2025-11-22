@@ -85,3 +85,6 @@ verify_jwt = true
 
 [functions.script-breakdown-translate]
 verify_jwt = true
+
+[functions.script-breakdown-pro]
+verify_jwt = true
