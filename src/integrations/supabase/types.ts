@@ -961,6 +961,7 @@ export type Database = {
         Returns: undefined
       }
       delete_user_asset: { Args: { asset_id: string }; Returns: Json }
+      grant_admin_by_email: { Args: { user_email: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
