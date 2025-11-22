@@ -8,50 +8,52 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 import { 
   FileText, Upload, Loader2, Film, Users, Wrench, 
-  MapPin, Download, Languages, Trash2, Edit, Save, Plus 
+  MapPin, Download, Languages, Trash2, CheckCircle2,
+  Shirt, Sparkles, Clapperboard, AlertCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Checkbox } from '@/components/ui/checkbox';
+import { useJobStatus } from '@/hooks/useJobStatus';
 
-interface Scene {
-  scene_id: number;
-  slugline: string;
-  description: string;
-  characters: string[];
-  props: string[];
-  vfx: string[];
-  estimated_pages: number;
-  notes: string;
-}
-
-interface Breakdown {
-  id: string;
-  breakdown: any; // JSONB from database
-  created_at: string;
-  original_filename: string;
-  raw_text: string;
+interface ComprehensiveBreakdown {
+  scenes: any[];
+  characters: { name: string; type: string; scene_count: number; scenes: number[] }[];
+  props: { name: string; scenes: number[]; quantity?: number }[];
+  locations: { name: string; int_ext: string; time: string[]; scenes: number[] }[];
+  wardrobe: { character: string; items: string[]; changes: number }[];
+  vfx_requirements: { type: string; complexity: string; scenes: number[] }[];
+  production_requirements: {
+    stunts: string[];
+    animals: string[];
+    children: number;
+    vehicles: string[];
+    crowd_scenes: number[];
+    special_equipment: string[];
+  };
+  statistics: {
+    total_scenes: number;
+    total_pages: number;
+    total_characters: number;
+    total_locations: number;
+    shooting_days_estimate: number;
+  };
 }
 
 export default function ScriptBreakdown() {
   const { user } = useAuth();
   const [scriptText, setScriptText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [breakdowns, setBreakdowns] = useState<Breakdown[]>([]);
-  const [selectedBreakdown, setSelectedBreakdown] = useState<Breakdown | null>(null);
-  const [editingScene, setEditingScene] = useState<number | null>(null);
-  const [editedScenes, setEditedScenes] = useState<Scene[]>([]);
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [breakdowns, setBreakdowns] = useState<any[]>([]);
+  const [selectedBreakdown, setSelectedBreakdown] = useState<ComprehensiveBreakdown | null>(null);
   const [translationLangs, setTranslationLangs] = useState<string[]>([]);
-  const [translations, setTranslations] = useState<Record<string, string>>({});
+  const [processingStep, setProcessingStep] = useState('');
+  const [progress, setProgress] = useState(0);
+  
+  const { job, isPolling } = useJobStatus(currentJobId);
   
   const africanLanguages = [
     { code: 'yoruba', name: 'Yoruba' },
@@ -67,57 +69,43 @@ export default function ScriptBreakdown() {
   }, [user]);
 
   useEffect(() => {
-    if (selectedBreakdown) {
-      const scenes = Array.isArray(selectedBreakdown.breakdown) 
-        ? selectedBreakdown.breakdown 
-        : [];
-      setEditedScenes(scenes);
-      loadTranslations(selectedBreakdown.id);
+    if (job) {
+      if (job.status === 'processing') {
+        setProcessingStep('Analyzing script...');
+        setProgress(50);
+      } else if (job.status === 'done') {
+        setIsProcessing(false);
+        setCurrentJobId(null);
+        setProgress(100);
+        toast.success('Script breakdown completed!');
+        loadBreakdowns();
+      } else if (job.status === 'failed') {
+        setIsProcessing(false);
+        setCurrentJobId(null);
+        setProgress(0);
+        toast.error(`Breakdown failed: ${job.error_message || 'Unknown error'}`);
+      }
     }
-  }, [selectedBreakdown]);
+  }, [job]);
 
   const loadBreakdowns = async () => {
     try {
       const { data, error } = await supabase
         .from('breakdowns')
         .select('*')
+        .eq('type', 'comprehensive')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      // Type cast breakdown field from JSONB to our Scene array
-      const typedBreakdowns = (data || []).map(b => ({
-        ...b,
-        breakdown: Array.isArray(b.breakdown) ? b.breakdown : []
-      })) as Breakdown[];
+      setBreakdowns(data || []);
       
-      setBreakdowns(typedBreakdowns);
-      
-      if (typedBreakdowns.length > 0 && !selectedBreakdown) {
-        setSelectedBreakdown(typedBreakdowns[0]);
+      if (data && data.length > 0 && !selectedBreakdown) {
+        setSelectedBreakdown(data[0].breakdown as unknown as ComprehensiveBreakdown);
       }
     } catch (error: any) {
       console.error('Failed to load breakdowns:', error);
       toast.error('Failed to load breakdowns');
-    }
-  };
-
-  const loadTranslations = async (breakdownId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('translations')
-        .select('*')
-        .eq('breakdown_id', breakdownId);
-
-      if (error) throw error;
-      
-      const translationsMap: Record<string, string> = {};
-      data?.forEach(t => {
-        translationsMap[t.language] = t.translated_text;
-      });
-      setTranslations(translationsMap);
-    } catch (error: any) {
-      console.error('Failed to load translations:', error);
     }
   };
 
@@ -140,77 +128,65 @@ export default function ScriptBreakdown() {
       return;
     }
 
-    if (scriptText.length < 50) {
-      toast.error('Script is too short. Minimum 50 characters required.');
+    if (scriptText.length < 100) {
+      toast.error('Script is too short. Minimum 100 characters required.');
       return;
     }
 
     setIsProcessing(true);
+    setProgress(10);
+    setProcessingStep('Creating job...');
+
     try {
-      const { data, error } = await supabase.functions.invoke('script-breakdown-translate', {
+      // Create job first
+      const { data: newJob, error: jobError } = await supabase
+        .from('jobs')
+        .insert({
+          user_id: user?.id,
+          type: 'script-breakdown',
+          status: 'pending',
+          input_data: { scriptLength: scriptText.length }
+        })
+        .select()
+        .single();
+
+      if (jobError) throw jobError;
+
+      setCurrentJobId(newJob.id);
+      setProgress(20);
+      setProcessingStep('Uploading...');
+
+      // Call the pro breakdown function
+      const { error } = await supabase.functions.invoke('script-breakdown-pro', {
         body: {
-          rawText: scriptText,
+          scriptText,
+          jobId: newJob.id,
           projectId: null,
-          targetLangs: translationLangs,
-          filename: 'uploaded_script.txt'
+          translateTo: translationLangs
         }
       });
 
       if (error) throw error;
 
-      toast.success('Script breakdown generated successfully!');
-      await loadBreakdowns();
-      
-      // Select the newly created breakdown
-      if (data.breakdownId) {
-        const newBreakdown = breakdowns.find(b => b.id === data.breakdownId);
-        if (newBreakdown) {
-          setSelectedBreakdown(newBreakdown);
-        }
-      }
+      setProgress(30);
+      setProcessingStep('Processing in background...');
+      toast.info('Script breakdown started! Processing in background...');
       
     } catch (error: any) {
       console.error('Breakdown generation error:', error);
-      toast.error(`Failed to generate breakdown: ${error.message}`);
-    } finally {
+      toast.error(`Failed to start breakdown: ${error.message}`);
       setIsProcessing(false);
+      setCurrentJobId(null);
+      setProgress(0);
     }
-  };
-
-  const saveBreakdown = async () => {
-    if (!selectedBreakdown) return;
-
-    try {
-      const { error } = await supabase
-        .from('breakdowns')
-        .update({ breakdown: editedScenes as any }) // Cast to any for JSONB
-        .eq('id', selectedBreakdown.id);
-
-      if (error) throw error;
-
-      toast.success('Breakdown saved successfully');
-      setEditingScene(null);
-      await loadBreakdowns();
-    } catch (error: any) {
-      console.error('Save error:', error);
-      toast.error('Failed to save changes');
-    }
-  };
-
-  const updateScene = (sceneId: number, field: keyof Scene, value: any) => {
-    setEditedScenes(prev =>
-      prev.map(scene =>
-        scene.scene_id === sceneId ? { ...scene, [field]: value } : scene
-      )
-    );
   };
 
   const exportToCSV = () => {
     if (!selectedBreakdown) return;
 
-    let csv = 'Scene,Slugline,Description,Characters,Props,VFX,Pages,Notes\n';
-    editedScenes.forEach(scene => {
-      csv += `${scene.scene_id},"${scene.slugline}","${scene.description}","${scene.characters.join('; ')}","${scene.props.join('; ')}","${scene.vfx.join('; ')}",${scene.estimated_pages},"${scene.notes}"\n`;
+    let csv = 'Scene,Slugline,INT/EXT,Time,Location,Characters,Props,Wardrobe,VFX,Pages\n';
+    selectedBreakdown.scenes.forEach(scene => {
+      csv += `${scene.scene_number},"${scene.slugline}",${scene.int_ext},${scene.time},"${scene.location}","${scene.characters.join('; ')}","${scene.props.join('; ')}","${scene.wardrobe.join('; ')}","${scene.vfx_sfx.join('; ')}",${scene.estimated_pages}\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -223,37 +199,45 @@ export default function ScriptBreakdown() {
     toast.success('Breakdown exported to CSV');
   };
 
-  const downloadTranslation = (lang: string) => {
-    const text = translations[lang];
-    if (!text) return;
+  const exportToPDF = () => {
+    if (!selectedBreakdown) return;
+
+    let text = '=== SCRIPT BREAKDOWN ===\n\n';
+    text += `Total Scenes: ${selectedBreakdown.statistics.total_scenes}\n`;
+    text += `Total Pages: ${selectedBreakdown.statistics.total_pages.toFixed(2)}\n`;
+    text += `Characters: ${selectedBreakdown.statistics.total_characters}\n`;
+    text += `Locations: ${selectedBreakdown.statistics.total_locations}\n`;
+    text += `Estimated Shooting Days: ${selectedBreakdown.statistics.shooting_days_estimate}\n\n`;
+
+    text += '=== CHARACTERS ===\n';
+    selectedBreakdown.characters.forEach(char => {
+      text += `${char.name} (${char.type}) - ${char.scene_count} scenes\n`;
+    });
+
+    text += '\n=== LOCATIONS ===\n';
+    selectedBreakdown.locations.forEach(loc => {
+      text += `${loc.name} (${loc.int_ext}) - ${loc.scenes.length} scenes\n`;
+    });
+
+    text += '\n=== VFX REQUIREMENTS ===\n';
+    selectedBreakdown.vfx_requirements.forEach(vfx => {
+      text += `${vfx.type} (${vfx.complexity}) - Scenes: ${vfx.scenes.join(', ')}\n`;
+    });
+
+    text += '\n=== PRODUCTION REQUIREMENTS ===\n';
+    text += `Stunts: ${selectedBreakdown.production_requirements.stunts.join(', ') || 'None'}\n`;
+    text += `Animals: ${selectedBreakdown.production_requirements.animals.join(', ') || 'None'}\n`;
+    text += `Children: ${selectedBreakdown.production_requirements.children}\n`;
+    text += `Vehicles: ${selectedBreakdown.production_requirements.vehicles.join(', ') || 'None'}\n`;
 
     const blob = new Blob([text], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `translation_${lang}_${Date.now()}.txt`;
+    a.download = `breakdown_${Date.now()}.txt`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success(`${lang} translation downloaded`);
-  };
-
-  const deleteBreakdown = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('breakdowns')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      toast.success('Breakdown deleted');
-      await loadBreakdowns();
-      if (selectedBreakdown?.id === id) {
-        setSelectedBreakdown(breakdowns[0] || null);
-      }
-    } catch (error: any) {
-      toast.error('Failed to delete breakdown');
-    }
+    toast.success('Breakdown exported');
   };
 
   return (
@@ -262,19 +246,18 @@ export default function ScriptBreakdown() {
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Film className="h-8 w-8" />
-            Script Breakdown & Translation
+            Professional Script Breakdown
           </h1>
           <p className="text-muted-foreground mt-2">
-            Generate professional script breakdowns and translate to African languages
+            AI-powered comprehensive breakdown with production requirements
           </p>
         </div>
       </div>
 
       <Tabs defaultValue="upload" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="upload">Upload & Generate</TabsTrigger>
-          <TabsTrigger value="breakdown">View Breakdown</TabsTrigger>
-          <TabsTrigger value="translations">Translations</TabsTrigger>
+          <TabsTrigger value="results">Results & Export</TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload" className="space-y-4">
@@ -282,7 +265,7 @@ export default function ScriptBreakdown() {
             <CardHeader>
               <CardTitle>Upload Script</CardTitle>
               <CardDescription>
-                Upload a script file or paste text to generate breakdown
+                Upload a script file or paste text for comprehensive breakdown
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -295,10 +278,6 @@ export default function ScriptBreakdown() {
                     accept=".txt,.pdf,.doc,.docx"
                     onChange={handleFileUpload}
                   />
-                  <Button variant="outline">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Choose File
-                  </Button>
                 </div>
               </div>
 
@@ -340,6 +319,16 @@ export default function ScriptBreakdown() {
                 </div>
               </div>
 
+              {isProcessing && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{processingStep}</span>
+                    <span className="font-medium">{progress}%</span>
+                  </div>
+                  <Progress value={progress} className="w-full" />
+                </div>
+              )}
+
               <Button
                 onClick={generateBreakdown}
                 disabled={isProcessing || !scriptText.trim()}
@@ -349,20 +338,24 @@ export default function ScriptBreakdown() {
                 {isProcessing ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Generating Breakdown...
+                    Processing...
                   </>
                 ) : (
                   <>
                     <FileText className="h-4 w-4 mr-2" />
-                    Generate Breakdown
+                    Generate Professional Breakdown
                   </>
                 )}
               </Button>
+              
+              <p className="text-xs text-muted-foreground text-center">
+                Cost: ~₦150 per 10-page script • Uses GPT-4.1-mini & GPT-4o-mini
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="breakdown" className="space-y-4">
+        <TabsContent value="results" className="space-y-4">
           {!selectedBreakdown ? (
             <Card>
               <CardContent className="py-12 text-center">
@@ -377,243 +370,238 @@ export default function ScriptBreakdown() {
             <>
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold">{selectedBreakdown.original_filename}</h3>
+                  <h3 className="text-lg font-semibold">Comprehensive Breakdown</h3>
                   <p className="text-sm text-muted-foreground">
-                    Created {new Date(selectedBreakdown.created_at).toLocaleDateString()}
+                    {selectedBreakdown.statistics.total_scenes} scenes • {selectedBreakdown.statistics.total_pages.toFixed(1)} pages
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick={saveBreakdown}>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Changes
-                  </Button>
                   <Button variant="outline" onClick={exportToCSV}>
                     <Download className="h-4 w-4 mr-2" />
-                    Export CSV
+                    CSV
                   </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => deleteBreakdown(selectedBreakdown.id)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
+                  <Button variant="outline" onClick={exportToPDF}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Text
                   </Button>
                 </div>
               </div>
 
+              {/* Statistics Overview */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-2xl font-bold">{selectedBreakdown.statistics.total_scenes}</div>
+                    <div className="text-sm text-muted-foreground">Scenes</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-2xl font-bold">{selectedBreakdown.statistics.total_characters}</div>
+                    <div className="text-sm text-muted-foreground">Characters</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-2xl font-bold">{selectedBreakdown.statistics.total_locations}</div>
+                    <div className="text-sm text-muted-foreground">Locations</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-2xl font-bold">{selectedBreakdown.statistics.total_pages.toFixed(1)}</div>
+                    <div className="text-sm text-muted-foreground">Pages</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="text-2xl font-bold">{selectedBreakdown.statistics.shooting_days_estimate}</div>
+                    <div className="text-sm text-muted-foreground">Est. Days</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Characters */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Film className="h-5 w-5" />
-                    Scene Breakdown ({editedScenes.length} scenes)
+                    <Users className="h-5 w-5" />
+                    Characters ({selectedBreakdown.characters.length})
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-16">Scene</TableHead>
-                          <TableHead>Slugline</TableHead>
-                          <TableHead>Description</TableHead>
-                          <TableHead>Characters</TableHead>
-                          <TableHead>Props</TableHead>
-                          <TableHead>VFX</TableHead>
-                          <TableHead className="w-20">Pages</TableHead>
-                          <TableHead className="w-16">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {editedScenes.map((scene) => (
-                          <TableRow key={scene.scene_id}>
-                            <TableCell>{scene.scene_id}</TableCell>
-                            <TableCell>
-                              {editingScene === scene.scene_id ? (
-                                <Input
-                                  value={scene.slugline}
-                                  onChange={(e) =>
-                                    updateScene(scene.scene_id, 'slugline', e.target.value)
-                                  }
-                                />
-                              ) : (
-                                <div className="font-medium">{scene.slugline}</div>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {editingScene === scene.scene_id ? (
-                                <Textarea
-                                  value={scene.description}
-                                  onChange={(e) =>
-                                    updateScene(scene.scene_id, 'description', e.target.value)
-                                  }
-                                />
-                              ) : (
-                                <div className="text-sm">{scene.description}</div>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {scene.characters.map((char, idx) => (
-                                  <Badge key={idx} variant="secondary">
-                                    {char}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {scene.props.map((prop, idx) => (
-                                  <Badge key={idx} variant="outline">
-                                    {prop}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex flex-wrap gap-1">
-                                {scene.vfx.map((vfx, idx) => (
-                                  <Badge key={idx} variant="default">
-                                    {vfx}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </TableCell>
-                            <TableCell>{scene.estimated_pages.toFixed(2)}</TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  setEditingScene(
-                                    editingScene === scene.scene_id ? null : scene.scene_id
-                                  )
-                                }
-                              >
-                                {editingScene === scene.scene_id ? (
-                                  <Save className="h-4 w-4" />
-                                ) : (
-                                  <Edit className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                  <div className="space-y-2">
+                    {selectedBreakdown.characters.map((char, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <div className="font-medium">{char.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {char.type} • {char.scene_count} scenes
+                            </div>
+                          </div>
+                        </div>
+                        <Badge variant={char.type === 'main' ? 'default' : 'secondary'}>
+                          {char.type}
+                        </Badge>
+                      </div>
+                    ))}
                   </div>
+                </CardContent>
+              </Card>
 
-                  <div className="mt-4 grid grid-cols-4 gap-4">
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="flex items-center gap-2">
-                          <Film className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <div className="text-2xl font-bold">{editedScenes.length}</div>
-                            <div className="text-xs text-muted-foreground">Total Scenes</div>
+              {/* Locations */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Locations ({selectedBreakdown.locations.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {selectedBreakdown.locations.map((loc, idx) => (
+                      <div key={idx} className="p-3 border rounded-lg">
+                        <div className="font-medium">{loc.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {loc.int_ext} • {loc.time.join(', ')} • {loc.scenes.length} scenes
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Props */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Wrench className="h-5 w-5" />
+                    Props ({selectedBreakdown.props.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedBreakdown.props.map((prop, idx) => (
+                      <Badge key={idx} variant="outline">
+                        {prop.name} {prop.quantity && `(${prop.quantity})`}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Wardrobe */}
+              {selectedBreakdown.wardrobe.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Shirt className="h-5 w-5" />
+                      Wardrobe
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {selectedBreakdown.wardrobe.map((w, idx) => (
+                        <div key={idx} className="p-3 border rounded-lg">
+                          <div className="font-medium">{w.character}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {w.items.join(', ')} • {w.changes} changes
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-muted-foreground" />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* VFX */}
+              {selectedBreakdown.vfx_requirements.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5" />
+                      VFX Requirements
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {selectedBreakdown.vfx_requirements.map((vfx, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 border rounded-lg">
                           <div>
-                            <div className="text-2xl font-bold">
-                              {[...new Set(editedScenes.flatMap(s => s.characters))].length}
+                            <div className="font-medium">{vfx.type}</div>
+                            <div className="text-sm text-muted-foreground">
+                              Scenes: {vfx.scenes.join(', ')}
                             </div>
-                            <div className="text-xs text-muted-foreground">Characters</div>
                           </div>
+                          <Badge variant={
+                            vfx.complexity === 'high' ? 'destructive' : 
+                            vfx.complexity === 'medium' ? 'default' : 'secondary'
+                          }>
+                            {vfx.complexity}
+                          </Badge>
                         </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="flex items-center gap-2">
-                          <Wrench className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <div className="text-2xl font-bold">
-                              {[...new Set(editedScenes.flatMap(s => s.props))].length}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Props</div>
-                          </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Production Requirements */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clapperboard className="h-5 w-5" />
+                    Production Requirements
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {selectedBreakdown.production_requirements.stunts.length > 0 && (
+                      <div>
+                        <div className="font-medium mb-2">Stunts</div>
+                        <div className="text-sm text-muted-foreground">
+                          {selectedBreakdown.production_requirements.stunts.join(', ')}
                         </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardContent className="pt-6">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <div className="text-2xl font-bold">
-                              {editedScenes.reduce((sum, s) => sum + s.estimated_pages, 0).toFixed(1)}
-                            </div>
-                            <div className="text-xs text-muted-foreground">Est. Pages</div>
-                          </div>
+                      </div>
+                    )}
+                    {selectedBreakdown.production_requirements.vehicles.length > 0 && (
+                      <div>
+                        <div className="font-medium mb-2">Vehicles</div>
+                        <div className="text-sm text-muted-foreground">
+                          {selectedBreakdown.production_requirements.vehicles.join(', ')}
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    )}
+                    {selectedBreakdown.production_requirements.animals.length > 0 && (
+                      <div>
+                        <div className="font-medium mb-2">Animals</div>
+                        <div className="text-sm text-muted-foreground">
+                          {selectedBreakdown.production_requirements.animals.join(', ')}
+                        </div>
+                      </div>
+                    )}
+                    {selectedBreakdown.production_requirements.children > 0 && (
+                      <div>
+                        <div className="font-medium mb-2">Children</div>
+                        <div className="text-sm text-muted-foreground">
+                          {selectedBreakdown.production_requirements.children} required
+                        </div>
+                      </div>
+                    )}
+                    {selectedBreakdown.production_requirements.special_equipment.length > 0 && (
+                      <div>
+                        <div className="font-medium mb-2">Special Equipment</div>
+                        <div className="text-sm text-muted-foreground">
+                          {selectedBreakdown.production_requirements.special_equipment.join(', ')}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             </>
           )}
-        </TabsContent>
-
-        <TabsContent value="translations" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Languages className="h-5 w-5" />
-                Available Translations
-              </CardTitle>
-              <CardDescription>
-                Translations generated for the selected breakdown
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {Object.keys(translations).length === 0 ? (
-                <div className="text-center py-12">
-                  <Languages className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No translations available</p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Select translation languages when generating a breakdown
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {Object.entries(translations).map(([lang, text]) => (
-                    <Card key={lang}>
-                      <CardHeader>
-                        <CardTitle className="text-lg flex items-center justify-between">
-                          <span>
-                            {africanLanguages.find(l => l.code === lang)?.name || lang}
-                          </span>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => downloadTranslation(lang)}
-                            >
-                              <Download className="h-4 w-4 mr-2" />
-                              Download
-                            </Button>
-                          </div>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <Textarea
-                          value={text}
-                          readOnly
-                          className="min-h-[150px]"
-                        />
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>
