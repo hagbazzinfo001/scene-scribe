@@ -32,8 +32,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header with Language Toggle */}
-      <div className="container mx-auto px-4 py-4 flex justify-end">
+      {/* Header with Login & Language Toggle */}
+      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+        <Button variant="outline" asChild>
+          <a href="/auth">{t('sign_in')}</a>
+        </Button>
         <LanguageToggle variant="mini" />
       </div>
       
