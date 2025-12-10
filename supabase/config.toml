@@ -88,3 +88,9 @@ verify_jwt = true
 
 [functions.script-breakdown-pro]
 verify_jwt = true
+
+[functions.paystack-payment]
+verify_jwt = true
+
+[functions.daily-tokens]
+verify_jwt = true

@@ -13,6 +13,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
+import { TokenDisplay } from '@/components/TokenDisplay';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -102,7 +103,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-foreground">{t('projects')}</h2>
           <p className="text-muted-foreground">
@@ -110,13 +111,16 @@ export default function Dashboard() {
           </p>
         </div>
         
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              {t('new_project')}
-            </Button>
-          </DialogTrigger>
+        <div className="flex flex-col sm:flex-row gap-4 items-start">
+          <TokenDisplay />
+          
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                {t('new_project')}
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>{t('create_new_project')}</DialogTitle>

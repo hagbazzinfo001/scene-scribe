@@ -8,7 +8,8 @@ import {
   Plus,
   Users,
   Shield,
-  FileText
+  FileText,
+  Coins
 } from "lucide-react";
 import {
   Sidebar,
@@ -33,6 +34,7 @@ const navigationItems = [
   { title: "AI Assistant Chat", url: "/ai-chat", icon: Users },
   { title: "Audio Cleanup", url: "/audio-cleanup", icon: Film },
   { title: "VFX & Animation", url: "/vfx-animation", icon: Plus },
+  { title: "Buy Tokens", url: "/payment", icon: Coins },
   { title: "Settings", url: "/settings", icon: Settings },
   { title: "Admin", url: "/admin", icon: Shield },
 ];

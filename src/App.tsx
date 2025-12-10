@@ -11,7 +11,7 @@ import Waitlist from "./pages/Waitlist";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import ProjectWorkspace from "./pages/ProjectWorkspace";
-// Removed legacy import page route
+import Payment from "./pages/Payment";
 import AIChat from "./pages/AIChat";
 import AudioCleanup from "./pages/AudioCleanup";
 import VFXAnimation from "./pages/VFXAnimation";
@@ -78,6 +78,7 @@ const App = () => (
                 <Route path="/vfx-animation/:projectId" element={<VFXAnimation />} />
                 <Route path="/mesh-generator" element={<MeshGenerator />} />
                 <Route path="/script-breakdown" element={<ScriptBreakdown />} />
+                <Route path="/payment" element={<Payment />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/admin" element={<Admin />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
