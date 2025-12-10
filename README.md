@@ -223,12 +223,6 @@ All tables implement Row Level Security (RLS) to ensure users can only access th
 2. Run migrations: `supabase db push`
 3. Configure secrets in Supabase dashboard
 
-### Frontend Deployment
-Use Lovable's built-in deployment:
-1. Open project in Lovable
-2. Click Share → Publish
-3. Configure custom domain if needed
-
 ## 🔧 Troubleshooting & Success Patterns
 
 ### ✅ Recent Fixes Applied
@@ -305,6 +299,3 @@ For development questions:
 3. Test with sample data
 4. Check browser console for client-side errors
 
-## License
-
-This project is built with Lovable and follows their terms of service.
