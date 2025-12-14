@@ -6,7 +6,26 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+/**
+ * Credit Management Edge Function
+ * 
+ * Allows admins to add or deduct credits from user accounts.
+ * 
+ * Usage:
+ *   POST /manage-credits
+ *   Body: { action: 'add' | 'deduct', userId: string, amount: number }
+ * 
+ * Configuration:
+ *   - Requires admin role in user_roles table
+ *   - Uses RPC functions: add_user_credits, deduct_user_credits
+ * 
+ * Developer Notes:
+ *   - To grant admin access, run: SELECT grant_admin_by_email('user@example.com');
+ *   - Amount must be integer between 1 and 100000
+ */
+
 serve(async (req) => {
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -20,9 +39,10 @@ serve(async (req) => {
     // Verify authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
+      console.log('No authorization header provided');
       return new Response(
         JSON.stringify({ error: 'Authentication required' }),
-        { status: 401, headers: corsHeaders }
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -31,9 +51,10 @@ serve(async (req) => {
     );
 
     if (authError || !user) {
+      console.log('Auth error:', authError?.message);
       return new Response(
         JSON.stringify({ error: 'Invalid authentication' }),
-        { status: 401, headers: corsHeaders }
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -43,13 +64,21 @@ serve(async (req) => {
       .select('role')
       .eq('user_id', user.id)
       .eq('role', 'admin')
-      .single();
+      .maybeSingle();
 
-    if (roleError || !userRoles) {
-      console.log('Authorization failed for user:', user.id);
+    if (roleError) {
+      console.log('Role check error:', roleError.message);
+      return new Response(
+        JSON.stringify({ error: 'Failed to verify permissions' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!userRoles) {
+      console.log('User not admin:', user.id);
       return new Response(
         JSON.stringify({ error: 'Admin access required' }),
-        { status: 403, headers: corsHeaders }
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -57,96 +86,102 @@ serve(async (req) => {
     const body = await req.json();
     const { action, userId, amount } = body;
 
+    console.log('Credit management request:', { action, userId, amount, adminId: user.id });
+
     // Input validation
-    if (!action || typeof action !== 'string') {
+    if (!action || typeof action !== 'string' || !['add', 'deduct'].includes(action)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid action parameter' }),
-        { status: 400, headers: corsHeaders }
+        JSON.stringify({ error: 'Invalid action: must be "add" or "deduct"' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (!userId || typeof userId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid userId parameter' }),
-        { status: 400, headers: corsHeaders }
+        JSON.stringify({ error: 'Invalid userId: must be a valid UUID' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (typeof amount !== 'number' || amount < 0 || amount > 100000 || !Number.isInteger(amount)) {
+    const parsedAmount = typeof amount === 'string' ? parseInt(amount, 10) : amount;
+    if (typeof parsedAmount !== 'number' || isNaN(parsedAmount) || parsedAmount < 1 || parsedAmount > 100000 || !Number.isInteger(parsedAmount)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid amount: must be integer between 0 and 100000' }),
-        { status: 400, headers: corsHeaders }
+        JSON.stringify({ error: 'Invalid amount: must be integer between 1 and 100000' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (!['add', 'deduct'].includes(action)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid action: must be "add" or "deduct"' }),
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
+    // Execute credit operation using RPC functions
     if (action === 'add') {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
-          credits_remaining: supabase.sql`credits_remaining + ${amount}`,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return new Response(JSON.stringify({
-        success: true,
-        credits_remaining: data.credits_remaining
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      const { error: rpcError } = await supabase.rpc('add_user_credits', {
+        p_user_id: userId,
+        p_amount: parsedAmount,
       });
-    } else if (action === 'deduct') {
-      // Get current credits first
-      const { data: profile, error: fetchError } = await supabase
+
+      if (rpcError) {
+        console.error('Add credits error:', rpcError);
+        return new Response(
+          JSON.stringify({ error: rpcError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get updated balance
+      const { data: profile } = await supabase
         .from('profiles')
-        .select('credits_remaining')
+        .select('credits_remaining, credits_used')
         .eq('id', userId)
         .single();
 
-      if (fetchError) throw fetchError;
-
-      const actualDeduct = Math.min(amount, profile.credits_remaining);
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
-          credits_remaining: Math.max(0, profile.credits_remaining - amount),
-          credits_used: supabase.sql`credits_used + ${actualDeduct}`,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId)
-        .select()
-        .single();
-
-      if (error) throw error;
+      console.log('Credits added successfully:', { userId, amount: parsedAmount, newBalance: profile?.credits_remaining });
 
       return new Response(JSON.stringify({
         success: true,
-        credits_remaining: data.credits_remaining
+        action: 'add',
+        amount: parsedAmount,
+        credits_remaining: profile?.credits_remaining ?? 0,
+        credits_used: profile?.credits_used ?? 0,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     } else {
-      return new Response(
-        JSON.stringify({ error: 'Invalid action. Use "add" or "deduct"' }),
-        { status: 400, headers: corsHeaders }
-      );
+      // Deduct credits
+      const { error: rpcError } = await supabase.rpc('deduct_user_credits', {
+        p_user_id: userId,
+        p_amount: parsedAmount,
+      });
+
+      if (rpcError) {
+        console.error('Deduct credits error:', rpcError);
+        return new Response(
+          JSON.stringify({ error: rpcError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get updated balance
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('credits_remaining, credits_used')
+        .eq('id', userId)
+        .single();
+
+      console.log('Credits deducted successfully:', { userId, amount: parsedAmount, newBalance: profile?.credits_remaining });
+
+      return new Response(JSON.stringify({
+        success: true,
+        action: 'deduct',
+        amount: parsedAmount,
+        credits_remaining: profile?.credits_remaining ?? 0,
+        credits_used: profile?.credits_used ?? 0,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
   } catch (error) {
-    console.error('Error in manage-credits:', error);
-    // Return generic error message to client, log details server-side
+    console.error('Manage credits error:', error);
     return new Response(
-      JSON.stringify({ error: 'An error occurred processing your request' }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'An unexpected error occurred' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

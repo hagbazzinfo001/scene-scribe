@@ -3,6 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
+/**
+ * Token Status Interface
+ * 
+ * Represents the current state of a user's token balance and claim eligibility.
+ */
 interface TokenStatus {
   current_balance: number;
   credits_used: number;
@@ -13,14 +18,24 @@ interface TokenStatus {
   last_claim: string | null;
 }
 
+/**
+ * Token Package Interface
+ * 
+ * Represents a purchasable token package.
+ */
 interface TokenPackage {
   id: string;
   name: string;
   tokens: number;
-  amount: number;
+  amount: number;       // Price in Naira
   popular?: boolean;
 }
 
+/**
+ * Available Token Packages
+ * 
+ * To modify packages, update both here AND in paystack-payment/index.ts
+ */
 export const TOKEN_PACKAGES: TokenPackage[] = [
   { id: 'starter', name: 'Starter Pack', tokens: 50, amount: 500 },
   { id: 'standard', name: 'Standard Pack', tokens: 150, amount: 1000, popular: true },
@@ -28,12 +43,26 @@ export const TOKEN_PACKAGES: TokenPackage[] = [
   { id: 'pro', name: 'Pro Pack', tokens: 1500, amount: 8000 },
 ];
 
+/**
+ * useTokens Hook
+ * 
+ * Provides token management functionality:
+ * - Fetch current token balance and status
+ * - Claim daily free tokens
+ * - Initiate token purchases
+ * - Verify payment completion
+ * 
+ * Usage:
+ * ```tsx
+ * const { tokenStatus, claimFreeTokens, initiatePayment } = useTokens();
+ * ```
+ */
 export function useTokens() {
   const { user, session } = useAuth();
   const queryClient = useQueryClient();
 
   // Fetch token status
-  const { data: tokenStatus, isLoading, refetch } = useQuery({
+  const { data: tokenStatus, isLoading, refetch, error } = useQuery({
     queryKey: ['token-status', user?.id],
     queryFn: async (): Promise<TokenStatus> => {
       if (!session?.access_token) throw new Error('Not authenticated');
@@ -44,11 +73,15 @@ export function useTokens() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Token status error:', error);
+        throw error;
+      }
       return data;
     },
     enabled: !!user && !!session,
     refetchInterval: 60000, // Refetch every minute to update countdown
+    retry: 2,
   });
 
   // Claim daily free tokens
@@ -91,12 +124,12 @@ export function useTokens() {
       });
 
       if (error) throw error;
-      if (!data.success) throw new Error(data.error);
+      if (!data.success && data.error) throw new Error(data.error);
       return data;
     },
     onSuccess: (data) => {
       if (data.dev_mode) {
-        toast.info('Development mode - Paystack not configured yet');
+        toast.info('Development mode - Paystack not configured. Configure PAYSTACK_SECRET_KEY in Supabase secrets.');
       }
       // Redirect to Paystack authorization URL
       if (data.data?.authorization_url) {
@@ -135,14 +168,23 @@ export function useTokens() {
   });
 
   return {
+    // Token status
     tokenStatus,
     isLoading,
+    error,
     refetchTokens: refetch,
+    
+    // Claim free tokens
     claimFreeTokens: claimFreeTokensMutation.mutate,
     isClaimingTokens: claimFreeTokensMutation.isPending,
+    
+    // Payment
     initiatePayment: initiatePaymentMutation.mutate,
     isInitiatingPayment: initiatePaymentMutation.isPending,
     verifyPayment: verifyPaymentMutation.mutate,
     isVerifyingPayment: verifyPaymentMutation.isPending,
+    
+    // Packages for display
+    packages: TOKEN_PACKAGES,
   };
 }

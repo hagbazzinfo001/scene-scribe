@@ -1,4 +1,4 @@
-import { Coins, Gift, Clock, Loader2 } from 'lucide-react';
+import { Coins, Gift, Clock, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -10,15 +10,29 @@ interface TokenDisplayProps {
   showClaimButton?: boolean;
 }
 
+/**
+ * TokenDisplay Component
+ * 
+ * Displays user's token balance with options to claim free tokens or buy more.
+ * 
+ * Usage:
+ * ```tsx
+ * <TokenDisplay />                    // Full card view
+ * <TokenDisplay compact />            // Compact inline view
+ * <TokenDisplay showClaimButton={false} />  // Hide claim button
+ * ```
+ */
 export function TokenDisplay({ compact = false, showClaimButton = true }: TokenDisplayProps) {
   const navigate = useNavigate();
   const { 
     tokenStatus, 
     isLoading, 
+    error,
     claimFreeTokens, 
     isClaimingTokens 
   } = useTokens();
 
+  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -28,6 +42,17 @@ export function TokenDisplay({ compact = false, showClaimButton = true }: TokenD
     );
   }
 
+  // Error state - show fallback
+  if (error) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 bg-destructive/10 rounded-lg text-destructive">
+        <AlertCircle className="h-4 w-4" />
+        <span className="text-sm">Unable to load tokens</span>
+      </div>
+    );
+  }
+
+  // Compact view for headers/sidebars
   if (compact) {
     return (
       <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-lg">
@@ -50,6 +75,7 @@ export function TokenDisplay({ compact = false, showClaimButton = true }: TokenD
     );
   }
 
+  // Format time until reset
   const formatTimeUntilReset = () => {
     if (!tokenStatus) return '';
     const { hours_until_reset, minutes_until_reset } = tokenStatus;
@@ -59,6 +85,7 @@ export function TokenDisplay({ compact = false, showClaimButton = true }: TokenD
     return `${minutes_until_reset}m`;
   };
 
+  // Full card view
   return (
     <Card className="border-primary/20">
       <CardHeader className="pb-2">
@@ -78,6 +105,7 @@ export function TokenDisplay({ compact = false, showClaimButton = true }: TokenD
           <span className="text-muted-foreground">tokens available</span>
         </div>
 
+        {/* Usage progress */}
         {tokenStatus && tokenStatus.credits_used > 0 && (
           <div className="space-y-1">
             <div className="flex justify-between text-sm">
@@ -91,6 +119,7 @@ export function TokenDisplay({ compact = false, showClaimButton = true }: TokenD
           </div>
         )}
 
+        {/* Action buttons */}
         <div className="flex flex-col gap-2">
           {tokenStatus?.can_claim_free_tokens ? (
             <Button 
