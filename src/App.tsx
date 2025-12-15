@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Waitlist from "./pages/Waitlist";
+import StudioWaitlist from "./pages/StudioWaitlist";
 import Dashboard from "./pages/Dashboard";
 import Admin from "./pages/Admin";
 import ProjectWorkspace from "./pages/ProjectWorkspace";
@@ -16,6 +17,8 @@ import AIChat from "./pages/AIChat";
 import AudioCleanup from "./pages/AudioCleanup";
 import VFXAnimation from "./pages/VFXAnimation";
 import MeshGenerator from "./pages/MeshGenerator";
+import MotionGenerator from "./pages/MotionGenerator";
+import Storyboard from "./pages/Storyboard";
 import ScriptBreakdown from "./pages/ScriptBreakdown";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -69,19 +72,20 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/waitlist" element={<Waitlist />} />
+                <Route path="/studio-waitlist" element={<StudioWaitlist />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/project/:id" element={<ProjectWorkspace />} />
-                {/* Removed legacy /project/:projectId/import route */}
                 <Route path="/ai-chat" element={<AIChat />} />
                 <Route path="/audio-cleanup" element={<AudioCleanup />} />
                 <Route path="/vfx-animation" element={<VFXAnimation />} />
                 <Route path="/vfx-animation/:projectId" element={<VFXAnimation />} />
                 <Route path="/mesh-generator" element={<MeshGenerator />} />
+                <Route path="/motion-generator" element={<MotionGenerator />} />
+                <Route path="/storyboard" element={<Storyboard />} />
                 <Route path="/script-breakdown" element={<ScriptBreakdown />} />
                 <Route path="/payment" element={<Payment />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/admin" element={<Admin />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AppLayout>

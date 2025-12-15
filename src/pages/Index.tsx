@@ -34,36 +34,63 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Header with Login & Language Toggle */}
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        <Button variant="outline" asChild>
-          <a href="/auth">{t('sign_in')}</a>
-        </Button>
-        <LanguageToggle variant="mini" />
+        <div className="flex items-center gap-2">
+          <Film className="h-8 w-8 text-primary" />
+          <span className="font-bold text-xl">NollyAI</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" asChild>
+            <a href="/auth">{t('sign_in')}</a>
+          </Button>
+          <LanguageToggle variant="mini" />
+        </div>
       </div>
       
       {/* Hero Section */}
       <div className="container mx-auto px-4 py-16">
         <div className="text-center max-w-4xl mx-auto">
-          <div className="flex items-center justify-center mb-6">
-            <Film className="h-12 w-12 text-primary mr-3" />
+          <motion.div 
+            className="flex items-center justify-center mb-6"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <Film className="h-16 w-16 text-primary mr-4" />
             <h1 className="text-4xl md:text-6xl font-bold text-foreground">
               {t('welcome_to')} {t('nollyai_studio')}
             </h1>
-          </div>
+          </motion.div>
           
-          <p className="text-xl md:text-2xl text-muted-foreground mb-8 leading-relaxed">
+          <motion.p 
+            className="text-xl md:text-2xl text-muted-foreground mb-8 leading-relaxed"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+          >
             {t('hero_subtitle')}
-          </p>
+          </motion.p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-4">
+          <motion.div 
+            className="flex flex-col sm:flex-row gap-4 justify-center mb-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+          >
             <Button size="lg" className="text-lg px-8 py-6" asChild>
               <a href="/waitlist">{t('join_waitlist')}</a>
+            </Button>
+            <Button size="lg" variant="secondary" className="text-lg px-8 py-6 gap-2" asChild>
+              <a href="/studio-waitlist">
+                <Sparkles className="h-5 w-5" />
+                Studio Waitlist
+              </a>
             </Button>
             <Button size="lg" variant="outline" className="text-lg px-8 py-6" onClick={() => {
               document.getElementById('demo-section')?.scrollIntoView({ behavior: 'smooth' });
             }}>
               {t('watch_demo')}
             </Button>
-          </div>
+          </motion.div>
           
           <p className="text-sm text-muted-foreground mb-16 max-w-2xl mx-auto">
             {t('early_access_note')}
