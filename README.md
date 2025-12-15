@@ -86,27 +86,29 @@ Admins can add/deduct credits via the Admin dashboard at `/admin`.
 
 ## 🎬 Core Features
 
+### Account Tiers
+- **Free**: AI Chat, Script Breakdown
+- **Pro**: + Audio Cleanup, 3D Mesh Generator  
+- **Studio**: + Motion Generator, Storyboard/Moodboard, VFX & Animation
+- **Enterprise**: All features + Priority Support
+- **VIP Access**: Users with "ovieadidi" email get full access automatically
+
 ### ✅ Script Analysis & Breakdown
 - AI-powered script analysis using OpenAI
 - Automatic character, scene, location, and prop extraction
-- PDF script upload and parsing
-- Production planning insights
 
 ### ✅ VFX Tools
+- **Motion Generator** (Studio): AI mocap data generation
+- **Storyboard/Moodboard** (Studio): Visual planning tools
 - **Rotoscoping/Tracking**: Video background removal
 - **Color Grading**: AI-powered color correction
-- **Auto-Rigger**: Generate character rigs
 - **Mesh Generator**: Text-to-3D model generation
 
-### ✅ Audio Processing
-- Audio cleanup and enhancement
-- Voice processing and noise reduction
-- Real-time preview and download
-
-### ✅ AI Assistant
-- Context-aware chat assistant
-- Project-specific guidance
-- Script breakdown assistance
+### ✅ Admin Dashboard
+- User & Account Tier Management
+- Credit/Wallet Management
+- Job Queue Monitoring
+- System Health Check
 
 ### ✅ Token & Billing
 - Daily free tokens

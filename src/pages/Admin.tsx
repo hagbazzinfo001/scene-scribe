@@ -99,7 +99,7 @@ export default function Admin() {
     queryKey: ['admin-stats'],
     queryFn: async () => {
       const [usersResult, projectsResult, jobsResult, assetsResult] = await Promise.allSettled([
-        supabase.from('profiles').select('id, email, full_name, credits_remaining, credits_used, created_at').order('created_at', { ascending: false }),
+        supabase.from('profiles').select('id, email, full_name, credits_remaining, credits_used, created_at, account_tier').order('created_at', { ascending: false }),
         supabase.from('projects').select('id, created_at, name').order('created_at', { ascending: false }),
         supabase.from('jobs').select('id, status, type, created_at').order('created_at', { ascending: false }),
         supabase.from('user_assets').select('id, file_type, file_size, created_at').order('created_at', { ascending: false })
@@ -236,9 +236,10 @@ export default function Admin() {
       </div>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="users">{t('users')}</TabsTrigger>
+          <TabsTrigger value="accounts">Accounts</TabsTrigger>
           <TabsTrigger value="wallet">Wallet</TabsTrigger>
           <TabsTrigger value="jobs">Jobs</TabsTrigger>
           <TabsTrigger value="system">System</TabsTrigger>
@@ -378,6 +379,92 @@ export default function Admin() {
                       </p>
                     </div>
                     <Badge variant="secondary">Active</Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="accounts" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Account Tier Management</CardTitle>
+              <p className="text-sm text-muted-foreground">Upgrade or downgrade user account tiers</p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-4">
+                <Card className="border-muted">
+                  <CardContent className="pt-4 text-center">
+                    <div className="text-2xl font-bold">{stats?.users.filter((u: any) => !u.account_tier || u.account_tier === 'free').length || 0}</div>
+                    <p className="text-sm text-muted-foreground">Free</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-blue-500/30">
+                  <CardContent className="pt-4 text-center">
+                    <div className="text-2xl font-bold text-blue-600">{stats?.users.filter((u: any) => u.account_tier === 'pro').length || 0}</div>
+                    <p className="text-sm text-muted-foreground">Pro</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-primary/30">
+                  <CardContent className="pt-4 text-center">
+                    <div className="text-2xl font-bold text-primary">{stats?.users.filter((u: any) => u.account_tier === 'studio').length || 0}</div>
+                    <p className="text-sm text-muted-foreground">Studio</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-purple-500/30">
+                  <CardContent className="pt-4 text-center">
+                    <div className="text-2xl font-bold text-purple-600">{stats?.users.filter((u: any) => u.account_tier === 'enterprise').length || 0}</div>
+                    <p className="text-sm text-muted-foreground">Enterprise</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-4">
+                {stats?.users.map((user: any) => (
+                  <div key={user.id} className="flex items-center justify-between border rounded-lg p-4">
+                    <div>
+                      <p className="font-medium">{user.email || user.full_name || 'No name'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Joined: {new Date(user.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Select
+                        value={user.account_tier || 'free'}
+                        onValueChange={async (newTier) => {
+                          try {
+                            const { error } = await supabase
+                              .from('profiles')
+                              .update({ account_tier: newTier })
+                              .eq('id', user.id);
+                            if (error) throw error;
+                            queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+                            toast.success(`Updated ${user.email} to ${newTier} tier`);
+                          } catch (err: any) {
+                            toast.error(`Failed to update tier: ${err.message}`);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="free">Free</SelectItem>
+                          <SelectItem value="pro">Pro</SelectItem>
+                          <SelectItem value="studio">Studio</SelectItem>
+                          <SelectItem value="enterprise">Enterprise</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Badge className={
+                        user.account_tier === 'enterprise' ? 'bg-purple-600 text-white' :
+                        user.account_tier === 'studio' ? 'bg-primary text-primary-foreground' :
+                        user.account_tier === 'pro' ? 'bg-blue-600 text-white' :
+                        'bg-muted text-muted-foreground'
+                      }>
+                        {user.account_tier || 'free'}
+                      </Badge>
+                    </div>
                   </div>
                 ))}
               </div>

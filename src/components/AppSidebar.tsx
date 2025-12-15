@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { 
   FolderOpen, 
@@ -9,7 +8,10 @@ import {
   Users,
   Shield,
   FileText,
-  Coins
+  Coins,
+  Layout,
+  Box,
+  Crown
 } from "lucide-react";
 import {
   Sidebar,
@@ -21,30 +23,53 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
+  SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserTier } from "@/hooks/useUserTier";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
 const navigationItems = [
-  { title: "Projects", url: "/dashboard", icon: FolderOpen },
-  { title: "Script Breakdown", url: "/script-breakdown", icon: FileText },
-  { title: "AI Assistant Chat", url: "/ai-chat", icon: Users },
-  { title: "Audio Cleanup", url: "/audio-cleanup", icon: Film },
-  { title: "VFX & Animation", url: "/vfx-animation", icon: Plus },
-  { title: "Buy Tokens", url: "/payment", icon: Coins },
-  { title: "Settings", url: "/settings", icon: Settings },
-  { title: "Admin", url: "/admin", icon: Shield },
+  { title: "Projects", url: "/dashboard", icon: FolderOpen, tier: 'free' },
+  { title: "Script Breakdown", url: "/script-breakdown", icon: FileText, tier: 'free' },
+  { title: "AI Assistant Chat", url: "/ai-chat", icon: Users, tier: 'free' },
+  { title: "Audio Cleanup", url: "/audio-cleanup", icon: Film, tier: 'pro' },
+  { title: "3D Mesh Generator", url: "/mesh-generator", icon: Box, tier: 'pro' },
+  { title: "Motion Generator", url: "/motion-generator", icon: Film, tier: 'studio', studioOnly: true },
+  { title: "Storyboard", url: "/storyboard", icon: Layout, tier: 'studio', studioOnly: true },
+  { title: "VFX & Animation", url: "/vfx-animation", icon: Plus, tier: 'studio' },
+  { title: "Buy Tokens", url: "/payment", icon: Coins, tier: 'free' },
+  { title: "Settings", url: "/settings", icon: Settings, tier: 'free' },
+  { title: "Admin", url: "/admin", icon: Shield, tier: 'admin' },
 ];
 
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const { user, signOut } = useAuth();
+  const { tier, getTierLabel, getTierColor, canAccessFeature, hasFullAccess } = useUserTier();
   const location = useLocation();
   const currentPath = location.pathname;
+
+  // Check if user is admin
+  const { data: userRoles } = useQuery({
+    queryKey: ["user-roles", user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  const isAdmin = userRoles?.some((r) => r.role === "admin") ?? false;
 
   // Fetch user's projects
   const { data: projects = [] } = useQuery({
@@ -69,6 +94,12 @@ export function AppSidebar() {
       ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" 
       : "hover:bg-sidebar-accent/50";
 
+  // Filter navigation items based on tier and admin status
+  const filteredNavItems = navigationItems.filter(item => {
+    if (item.tier === 'admin') return isAdmin || hasFullAccess;
+    return true; // Show all items, but some will be locked
+  });
+
   return (
     <Sidebar className={collapsed ? "w-14" : "w-64"} collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border p-4">
@@ -76,10 +107,18 @@ export function AppSidebar() {
           <Film className="h-6 w-6 text-sidebar-primary" />
           {!collapsed && (
             <span className="font-semibold text-sidebar-foreground">
-              Nollywood AI
+              NollyAI Studio
             </span>
           )}
         </div>
+        {!collapsed && (
+          <div className="mt-2">
+            <Badge className={`${getTierColor()} text-xs`}>
+              {hasFullAccess && <Crown className="h-3 w-3 mr-1" />}
+              {getTierLabel()}
+            </Badge>
+          </div>
+        )}
       </SidebarHeader>
 
       <SidebarContent>
@@ -87,19 +126,30 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navigationItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink 
-                      to={item.url} 
-                      className={getNavClass(item.url)}
-                    >
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {filteredNavItems.map((item) => {
+                const isLocked = item.studioOnly && !canAccessFeature(item.url.replace('/', '').replace('-', '-'));
+                
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild>
+                      <NavLink 
+                        to={item.url} 
+                        className={`${getNavClass(item.url)} flex items-center justify-between`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </div>
+                        {item.studioOnly && !collapsed && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 text-primary border-primary/50">
+                            Studio
+                          </Badge>
+                        )}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -116,7 +166,7 @@ export function AppSidebar() {
                         to={`/project/${project.id}`}
                         className={getNavClass(`/project/${project.id}`)}
                       >
-                        <FolderOpen />
+                        <FolderOpen className="h-4 w-4" />
                         <span className="truncate">{project.name}</span>
                       </NavLink>
                     </SidebarMenuButton>
@@ -132,7 +182,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton onClick={signOut}>
-                  <LogOut />
+                  <LogOut className="h-4 w-4" />
                   <span>Sign Out</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>

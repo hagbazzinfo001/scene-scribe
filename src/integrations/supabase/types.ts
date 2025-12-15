@@ -532,6 +532,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_tier: string | null
           avatar_url: string | null
           created_at: string | null
           credits_remaining: number | null
@@ -542,6 +543,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          account_tier?: string | null
           avatar_url?: string | null
           created_at?: string | null
           credits_remaining?: number | null
@@ -552,6 +554,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          account_tier?: string | null
           avatar_url?: string | null
           created_at?: string | null
           credits_remaining?: number | null
@@ -650,6 +653,33 @@ export type Database = {
           project_id?: string
           title?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      studio_waitlist: {
+        Row: {
+          company_name: string | null
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          interest_area: string | null
+        }
+        Insert: {
+          company_name?: string | null
+          created_at?: string | null
+          email: string
+          full_name: string
+          id?: string
+          interest_area?: string | null
+        }
+        Update: {
+          company_name?: string | null
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          interest_area?: string | null
         }
         Relationships: []
       }
@@ -969,6 +999,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_tier_access: { Args: { required_tier: string }; Returns: boolean }
       trigger_job_worker: { Args: never; Returns: undefined }
       user_can_access_project: {
         Args: { p_project_id: string }
