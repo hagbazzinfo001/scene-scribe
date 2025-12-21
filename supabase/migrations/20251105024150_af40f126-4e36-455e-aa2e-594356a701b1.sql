@@ -11,12 +11,14 @@ CREATE TABLE IF NOT EXISTS public.waitlist (
 ALTER TABLE public.waitlist ENABLE ROW LEVEL SECURITY;
 
 -- Create policy to allow anyone to insert into waitlist
+-- STORAGE_BLOCK_START
 CREATE POLICY "Anyone can join waitlist" 
 ON public.waitlist 
 FOR INSERT 
 WITH CHECK (true);
 
 -- Create policy for admins to view waitlist
+-- STORAGE_BLOCK_START
 CREATE POLICY "Admins can view waitlist" 
 ON public.waitlist 
 FOR SELECT 
