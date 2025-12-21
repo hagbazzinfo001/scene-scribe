@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Coins, Check, Loader2, Sparkles } from 'lucide-react';
+import { Coins, Loader2} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,23 +17,20 @@ export default function Payment() {
     isInitiatingPayment, 
     verifyPayment, 
     isVerifyingPayment,
-    tokenStatus,
   } = useTokens();
 
-  // Handle payment verification on return from Paystack
   useEffect(() => {
     const reference = searchParams.get('reference');
     if (reference) {
       verifyPayment(reference);
-      // Clean up URL
       navigate('/payment', { replace: true });
     }
   }, [searchParams, verifyPayment, navigate]);
 
   if (!user) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <Card className="max-w-md w-full">
+      <div className="flex-1 flex items-center justify-center p-4 md:p-8">
+        <Card className="max-w-sm w-full">
           <CardHeader className="text-center">
             <CardTitle>Sign In Required</CardTitle>
             <CardDescription>
@@ -51,21 +48,23 @@ export default function Payment() {
   }
 
   return (
-    <div className="flex-1 space-y-6 p-4 md:p-8">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="flex-1 p-4 md:p-8">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Buy Tokens</h1>
-          <p className="text-muted-foreground">
-            Purchase tokens to use AI models for your projects
+          <h1 className="text-3xl font-bold text-foreground">Buy Tokens</h1>
+          <p className="text-muted-foreground mt-1">
+            Purchase tokens to power AI models for your projects
           </p>
         </div>
-        <div className="w-full md:w-auto md:min-w-[300px]">
+        <div className="w-full lg:w-auto lg:min-w-[320px]">
           <TokenDisplay showClaimButton={true} />
         </div>
       </div>
 
+      {/* Payment Verification */}
       {isVerifyingPayment && (
-        <Card className="border-primary">
+        <Card className="mb-8 border-primary">
           <CardContent className="flex items-center justify-center gap-3 py-6">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
             <span>Verifying your payment...</span>
@@ -73,77 +72,100 @@ export default function Payment() {
         </Card>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {TOKEN_PACKAGES.map((pkg) => (
-          <Card 
-            key={pkg.id} 
-            className={`relative transition-all hover:shadow-lg ${
-              pkg.popular ? 'border-primary shadow-md' : ''
-            }`}
-          >
-            {pkg.popular && (
-              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 gap-1">
-                <Sparkles className="h-3 w-3" />
-                Popular
-              </Badge>
-            )}
-            <CardHeader className="text-center pb-2">
-              <CardTitle className="text-xl">{pkg.name}</CardTitle>
-              <CardDescription>
-                Best for {pkg.tokens < 100 ? 'trying out' : pkg.tokens < 300 ? 'regular use' : pkg.tokens < 1000 ? 'heavy projects' : 'professional work'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-center space-y-4">
-              <div className="flex items-center justify-center gap-2">
-                <Coins className="h-8 w-8 text-primary" />
-                <span className="text-4xl font-bold">{pkg.tokens}</span>
-              </div>
-              <p className="text-sm text-muted-foreground">tokens</p>
-              <div className="text-2xl font-semibold">
-                ₦{pkg.amount.toLocaleString()}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                ₦{(pkg.amount / pkg.tokens).toFixed(1)} per token
-              </p>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                onClick={() => initiatePayment(pkg.id)}
-                disabled={isInitiatingPayment}
-                className="w-full"
-                variant={pkg.popular ? 'default' : 'outline'}
-              >
-                {isInitiatingPayment ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Check className="h-4 w-4 mr-2" />
-                )}
-                Buy Now
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+      {/* Token Packages */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
+        {TOKEN_PACKAGES.map((pkg) => {
+          const pricePerToken = (pkg.amount / pkg.tokens).toFixed(1);
+          const savings = pkg.tokens > 50 ? Math.round((1 - (pkg.amount / pkg.tokens) / 10) * 100) : 0;
+          
+          return (
+            <Card 
+              key={pkg.id} 
+              className={`relative transition-shadow hover:shadow-lg ${
+                pkg.popular ? 'ring-2 ring-primary' : ''
+              }`}
+            >
+              {pkg.popular && (
+                <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2">
+                  Popular
+                </Badge>
+              )}
+              
+              <CardHeader className={pkg.popular ? 'pt-6' : ''}>
+                <CardTitle className="text-lg">{pkg.name}</CardTitle>
+                <CardDescription>
+                  {pkg.tokens < 100 ? 'Try it out' : 
+                   pkg.tokens < 300 ? 'Regular use' : 
+                   pkg.tokens < 1000 ? 'Heavy projects' : 
+                   'Professional work'}
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <Coins className="h-5 w-5 text-primary" />
+                    <span className="text-4xl font-bold">{pkg.tokens.toLocaleString()}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">tokens</p>
+                </div>
+
+                <div className="text-center py-3 border-t border-b">
+                  <p className="text-2xl font-semibold">₦{pkg.amount.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    ₦{pricePerToken} per token
+                    {savings > 0 && (
+                      <span className="text-primary font-medium ml-1">
+                        · Save {savings}%
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </CardContent>
+
+              <CardFooter>
+                <Button 
+                  onClick={() => initiatePayment(pkg.id)}
+                  disabled={isInitiatingPayment}
+                  className="w-full"
+                  variant={pkg.popular ? 'default' : 'outline'}
+                >
+                  {isInitiatingPayment ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Coins className="h-4 w-4 mr-2" />
+                  )}
+                  Buy Now
+                </Button>
+              </CardFooter>
+            </Card>
+          );
+        })}
       </div>
 
-      <Card className="bg-muted/30">
-        <CardContent className="py-6">
-          <h3 className="font-semibold mb-4">Token Usage Guide</h3>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-1">
-              <p className="font-medium">Script Breakdown</p>
-              <p className="text-sm text-muted-foreground">~5 tokens per page</p>
+      {/* Usage Guide */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Token Usage</CardTitle>
+          <CardDescription>Estimated token costs for AI features</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-y-3 gap-x-8 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="flex justify-between sm:flex-col sm:gap-0.5">
+              <span className="font-medium">Script Breakdown</span>
+              <span className="text-muted-foreground text-sm">~5 tokens/page</span>
             </div>
-            <div className="space-y-1">
-              <p className="font-medium">Rotoscoping</p>
-              <p className="text-sm text-muted-foreground">~10 tokens per minute</p>
+            <div className="flex justify-between sm:flex-col sm:gap-0.5">
+              <span className="font-medium">Rotoscoping</span>
+              <span className="text-muted-foreground text-sm">~10 tokens/min</span>
             </div>
-            <div className="space-y-1">
-              <p className="font-medium">3D Mesh Generation</p>
-              <p className="text-sm text-muted-foreground">~15 tokens per model</p>
+            <div className="flex justify-between sm:flex-col sm:gap-0.5">
+              <span className="font-medium">3D Mesh Generation</span>
+              <span className="text-muted-foreground text-sm">~15 tokens/model</span>
             </div>
-            <div className="space-y-1">
-              <p className="font-medium">Audio Cleanup</p>
-              <p className="text-sm text-muted-foreground">~3 tokens per minute</p>
+            <div className="flex justify-between sm:flex-col sm:gap-0.5">
+              <span className="font-medium">Audio Cleanup</span>
+              <span className="text-muted-foreground text-sm">~3 tokens/min</span>
             </div>
           </div>
         </CardContent>
