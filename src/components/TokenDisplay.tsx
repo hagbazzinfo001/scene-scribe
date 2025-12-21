@@ -30,7 +30,7 @@ export function TokenDisplay({ compact = false, showClaimButton = true }: TokenD
 
   if (compact) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 bg-secondary/50 rounded-lg">
+      <div className="flex items-center gap-2 px-3 py-2 bg-secondary rounded-lg">
         <Coins className="h-4 w-4 text-primary" />
         <span className="font-medium">{tokenStatus?.current_balance || 0}</span>
         <span className="text-muted-foreground text-sm">tokens</span>
@@ -38,7 +38,7 @@ export function TokenDisplay({ compact = false, showClaimButton = true }: TokenD
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-2 text-xs"
+            className="h-6 px-2 text-xs ml-1"
             onClick={() => claimFreeTokens()}
             disabled={isClaimingTokens}
           >
@@ -60,8 +60,8 @@ export function TokenDisplay({ compact = false, showClaimButton = true }: TokenD
   };
 
   return (
-    <Card className="border-primary/20">
-      <CardHeader className="pb-2">
+    <Card>
+      <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Coins className="h-5 w-5 text-primary" />
           Token Balance
@@ -79,14 +79,14 @@ export function TokenDisplay({ compact = false, showClaimButton = true }: TokenD
         </div>
 
         {tokenStatus && tokenStatus.credits_used > 0 && (
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Total used</span>
               <span>{tokenStatus.credits_used} tokens</span>
             </div>
             <Progress 
               value={Math.min((tokenStatus.credits_used / (tokenStatus.credits_used + tokenStatus.current_balance)) * 100, 100)} 
-              className="h-2"
+              className="h-1.5"
             />
           </div>
         )}
@@ -107,7 +107,7 @@ export function TokenDisplay({ compact = false, showClaimButton = true }: TokenD
               Claim {tokenStatus.daily_free_tokens} Free Tokens
             </Button>
           ) : (
-            <div className="flex items-center justify-center gap-2 py-2 px-3 bg-muted/50 rounded-md text-sm text-muted-foreground">
+            <div className="flex items-center justify-center gap-2 py-2 px-3 bg-muted rounded-md text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
               Next free tokens in {formatTimeUntilReset()}
             </div>
