@@ -71,10 +71,12 @@ ALTER TABLE public.breakdowns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for profiles
+DROP POLICY IF EXISTS "Users can view and update their own profile" ON public.profiles;
 CREATE POLICY "Users can view and update their own profile" ON public.profiles
   FOR ALL USING (auth.uid() = id);
 
 -- RLS policies for projects
+DROP POLICY IF EXISTS "Users can view projects they own or collaborate on" ON public.projects;
 CREATE POLICY "Users can view projects they own or collaborate on" ON public.projects
   FOR SELECT USING (
     owner_id = auth.uid() OR 
@@ -84,16 +86,20 @@ CREATE POLICY "Users can view projects they own or collaborate on" ON public.pro
     )
   );
 
+DROP POLICY IF EXISTS "Users can create their own projects" ON public.projects;
 CREATE POLICY "Users can create their own projects" ON public.projects
   FOR INSERT WITH CHECK (owner_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can update projects they own" ON public.projects;
 CREATE POLICY "Users can update projects they own" ON public.projects
   FOR UPDATE USING (owner_id = auth.uid());
 
+DROP POLICY IF EXISTS "Users can delete projects they own" ON public.projects;
 CREATE POLICY "Users can delete projects they own" ON public.projects
   FOR DELETE USING (owner_id = auth.uid());
 
 -- RLS policies for project collaborators
+DROP POLICY IF EXISTS "Users can view collaborators for projects they have access to" ON public.project_collaborators;
 CREATE POLICY "Users can view collaborators for projects they have access to" ON public.project_collaborators
   FOR SELECT USING (
     EXISTS (
@@ -108,6 +114,7 @@ CREATE POLICY "Users can view collaborators for projects they have access to" ON
     )
   );
 
+DROP POLICY IF EXISTS "Project owners can manage collaborators" ON public.project_collaborators;
 CREATE POLICY "Project owners can manage collaborators" ON public.project_collaborators
   FOR ALL USING (
     EXISTS (
@@ -117,6 +124,7 @@ CREATE POLICY "Project owners can manage collaborators" ON public.project_collab
   );
 
 -- RLS policies for scripts
+DROP POLICY IF EXISTS "Users can view scripts for projects they have access to" ON public.scripts;
 CREATE POLICY "Users can view scripts for projects they have access to" ON public.scripts
   FOR SELECT USING (
     EXISTS (
@@ -131,6 +139,7 @@ CREATE POLICY "Users can view scripts for projects they have access to" ON publi
     )
   );
 
+DROP POLICY IF EXISTS "Users can create scripts for projects they have access to" ON public.scripts;
 CREATE POLICY "Users can create scripts for projects they have access to" ON public.scripts
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -145,6 +154,7 @@ CREATE POLICY "Users can create scripts for projects they have access to" ON pub
     )
   );
 
+DROP POLICY IF EXISTS "Users can update scripts for projects they have access to" ON public.scripts;
 CREATE POLICY "Users can update scripts for projects they have access to" ON public.scripts
   FOR UPDATE USING (
     EXISTS (
@@ -160,6 +170,7 @@ CREATE POLICY "Users can update scripts for projects they have access to" ON pub
   );
 
 -- RLS policies for breakdowns
+DROP POLICY IF EXISTS "Users can view breakdowns for projects they have access to" ON public.breakdowns;
 CREATE POLICY "Users can view breakdowns for projects they have access to" ON public.breakdowns
   FOR SELECT USING (
     EXISTS (
@@ -175,6 +186,7 @@ CREATE POLICY "Users can view breakdowns for projects they have access to" ON pu
     )
   );
 
+DROP POLICY IF EXISTS "Users can create breakdowns for projects they have access to" ON public.breakdowns;
 CREATE POLICY "Users can create breakdowns for projects they have access to" ON public.breakdowns
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -191,6 +203,7 @@ CREATE POLICY "Users can create breakdowns for projects they have access to" ON 
   );
 
 -- RLS policies for chat messages
+DROP POLICY IF EXISTS "Users can view chat messages for projects they have access to" ON public.chat_messages;
 CREATE POLICY "Users can view chat messages for projects they have access to" ON public.chat_messages
   FOR SELECT USING (
     EXISTS (
@@ -205,6 +218,7 @@ CREATE POLICY "Users can view chat messages for projects they have access to" ON
     )
   );
 
+DROP POLICY IF EXISTS "Users can create chat messages for projects they have access to" ON public.chat_messages;
 CREATE POLICY "Users can create chat messages for projects they have access to" ON public.chat_messages
   FOR INSERT WITH CHECK (
     user_id = auth.uid() AND

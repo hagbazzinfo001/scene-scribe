@@ -20,6 +20,8 @@ CREATE TABLE public.breakdowns (
 ALTER TABLE public.breakdowns ENABLE ROW LEVEL SECURITY;
 
 -- RLS policy for breakdowns - users manage their own
+DROP POLICY IF EXISTS "breakdown_user" ON public.breakdowns;
+-- STORAGE_BLOCK_START
 CREATE POLICY "breakdown_user" ON public.breakdowns
   FOR ALL
   USING (auth.uid() = user_id)
@@ -39,6 +41,8 @@ CREATE TABLE IF NOT EXISTS public.translations (
 ALTER TABLE public.translations ENABLE ROW LEVEL SECURITY;
 
 -- RLS policy for translations - users access translations for their breakdowns
+DROP POLICY IF EXISTS "translations_user" ON public.translations;
+-- STORAGE_BLOCK_START
 CREATE POLICY "translations_user" ON public.translations
   FOR ALL
   USING (
