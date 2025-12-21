@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Coins, Loader2} from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,12 @@ export default function Payment() {
     verifyPayment, 
     isVerifyingPayment,
   } = useTokens();
+  const [purchasingPackageId, setPurchasingPackageId] = useState<string | null>(null);
+
+  const handlePurchase = (packageId: string) => {
+    setPurchasingPackageId(packageId);
+    initiatePayment(packageId);
+  };
 
   useEffect(() => {
     const reference = searchParams.get('reference');
@@ -125,12 +131,12 @@ export default function Payment() {
 
               <CardFooter>
                 <Button 
-                  onClick={() => initiatePayment(pkg.id)}
+                  onClick={() => handlePurchase(pkg.id)}
                   disabled={isInitiatingPayment}
                   className="w-full"
                   variant={pkg.popular ? 'default' : 'outline'}
                 >
-                  {isInitiatingPayment ? (
+                  {isInitiatingPayment && purchasingPackageId === pkg.id ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
                     <Coins className="h-4 w-4 mr-2" />
