@@ -78,7 +78,7 @@ serve(async (req) => {
         .single();
 
       const email = profile?.email || user.email;
-      const reference = `nolly_${user.id.slice(0, 8)}_${Date.now()}`;
+      const reference = `nolly_${packageId}_${user.id.slice(0, 8)}_${Date.now()}`;
 
       // If using placeholder key, return mock response for development
       if (paystackSecretKey === 'sk_test_placeholder_key') {
@@ -159,8 +159,11 @@ async function verifyPayment(
 ) {
   // Handle dev mode verification
   if (paystackSecretKey === 'sk_test_placeholder_key' || reference.includes('dev_mode')) {
-    // In dev mode, just add tokens directly
-    const tokensToAdd = 50; // Default starter pack for dev mode
+    // Parse package ID from reference (format: nolly_packageId_userId_timestamp)
+    const refParts = reference.split('_');
+    const packageId = refParts[1] || 'starter';
+    const pkg = TOKEN_PACKAGES[packageId as keyof typeof TOKEN_PACKAGES];
+    const tokensToAdd = pkg?.tokens || 50;
     
     await supabaseClient.rpc('add_user_credits', {
       p_user_id: userId,
@@ -186,6 +189,9 @@ async function verifyPayment(
 
   const verifyData = await verifyResponse.json();
 
+  console.log('DEBUG: Full Paystack verify response:', JSON.stringify(verifyData, null, 2));
+  console.log('DEBUG: Reference received:', reference);
+
   if (!verifyData.status || verifyData.data.status !== 'success') {
     return new Response(JSON.stringify({ 
       success: false, 
@@ -196,8 +202,21 @@ async function verifyPayment(
     });
   }
 
-  // Extract tokens from metadata
-  const tokensToAdd = verifyData.data.metadata?.tokens || 50;
+  // Extract tokens from metadata, or parse from reference as fallback
+  let tokensToAdd = verifyData.data.metadata?.tokens;
+  console.log('DEBUG: Tokens from metadata:', tokensToAdd);
+  
+  // Fallback: parse package ID from reference (format: nolly_packageId_userId_timestamp)
+  if (!tokensToAdd) {
+    const refParts = reference.split('_');
+    console.log('DEBUG: Reference parts:', refParts);
+    const packageId = refParts[1] || 'starter';
+    console.log('DEBUG: Parsed packageId:', packageId);
+    const pkg = TOKEN_PACKAGES[packageId as keyof typeof TOKEN_PACKAGES];
+    console.log('DEBUG: Found package:', pkg);
+    tokensToAdd = pkg?.tokens || 50;
+    console.log('DEBUG: Final tokensToAdd:', tokensToAdd);
+  }
 
   // Add tokens to user's account
   await supabaseClient.rpc('add_user_credits', {
