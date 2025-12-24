@@ -54,47 +54,7 @@ export default function Admin() {
 
   const isAdmin = userRoles?.some((r) => r.role === "admin") ?? false;
 
-  if (!user) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <Card className="w-[400px]">
-          <CardContent className="pt-6 text-center">
-            <p className="text-muted-foreground">Please sign in to access the admin dashboard.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (rolesLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <Card className="w-[400px]">
-          <CardContent className="pt-6 text-center">
-            <p className="text-muted-foreground">Verifying permissions...</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <Card className="w-[400px]">
-          <CardContent className="pt-6 text-center">
-            <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
-            <p className="text-muted-foreground">
-              You don't have permission to access the admin dashboard.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Fetch real data
+  // Fetch real data - ALL hooks must be called before any conditional returns
   const { data: stats } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: async () => {
@@ -112,7 +72,8 @@ export default function Admin() {
         assets: assetsResult.status === 'fulfilled' ? assetsResult.value.data || [] : []
       };
     },
-    refetchInterval: 30000 // Refresh every 30 seconds
+    enabled: isAdmin, // Only fetch when user is admin
+    refetchInterval: 30000
   });
 
   const { data: systemHealth } = useQuery({
@@ -129,7 +90,8 @@ export default function Admin() {
         };
       }
     },
-    refetchInterval: 60000 // Check every minute
+    enabled: isAdmin,
+    refetchInterval: 60000
   });
 
   // System maintenance actions
@@ -156,7 +118,7 @@ export default function Admin() {
         .from('jobs')
         .update({ status: 'pending', updated_at: new Date().toISOString() })
         .eq('status', 'running')
-        .lt('updated_at', new Date(Date.now() - 10 * 60 * 1000).toISOString()); // Older than 10 minutes
+        .lt('updated_at', new Date(Date.now() - 10 * 60 * 1000).toISOString());
       if (error) throw error;
     },
     onSuccess: () => {
@@ -207,6 +169,7 @@ export default function Admin() {
     }
   });
 
+  // Helper function - can be defined anywhere
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'success':
@@ -225,6 +188,47 @@ export default function Admin() {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  // NOW we can have conditional returns - all hooks are above
+  if (!user) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Card className="w-[400px]">
+          <CardContent className="pt-6 text-center">
+            <p className="text-muted-foreground">Please sign in to access the admin dashboard.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (rolesLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Card className="w-[400px]">
+          <CardContent className="pt-6 text-center">
+            <p className="text-muted-foreground">Verifying permissions...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Card className="w-[400px]">
+          <CardContent className="pt-6 text-center">
+            <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+            <p className="text-muted-foreground">
+              You don't have permission to access the admin dashboard.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">

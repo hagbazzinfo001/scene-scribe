@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public.mesh_assets (
 ALTER TABLE public.mesh_assets ENABLE ROW LEVEL SECURITY;
 
 -- RLS policy for mesh_assets - users can only access their own assets
+-- STORAGE_BLOCK_START
 CREATE POLICY "Users can manage their own mesh assets" 
 ON public.mesh_assets 
 FOR ALL 
@@ -30,7 +31,7 @@ ALTER TABLE public.jobs
 ADD COLUMN IF NOT EXISTS asset_id uuid;
 
 -- Create index for efficient job polling
-CREATE INDEX IF NOT EXISTS idx_jobs_status_type ON public.jobs(status, job_type);
+CREATE INDEX IF NOT EXISTS idx_jobs_status_type ON public.jobs(status, type);
 CREATE INDEX IF NOT EXISTS idx_mesh_assets_owner ON public.mesh_assets(owner_id);
 CREATE INDEX IF NOT EXISTS idx_mesh_assets_status ON public.mesh_assets(status);
 

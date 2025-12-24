@@ -2,11 +2,15 @@
 
 -- 1. Fix profiles table - users can only see their own email
 DROP POLICY IF EXISTS "Users can view and update their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 
+-- STORAGE_BLOCK_START
 CREATE POLICY "Users can view their own profile"
 ON public.profiles FOR SELECT
 USING (auth.uid() = id);
 
+-- STORAGE_BLOCK_START
 CREATE POLICY "Users can update their own profile"
 ON public.profiles FOR UPDATE
 USING (auth.uid() = id);
@@ -15,6 +19,8 @@ USING (auth.uid() = id);
 DROP POLICY IF EXISTS "Allow service role full access to ai_usage_analytics" ON public.ai_usage_analytics;
 DROP POLICY IF EXISTS "Service role full access to ai_usage_analytics" ON public.ai_usage_analytics;
 
+-- STORAGE_BLOCK_START
+DROP POLICY IF EXISTS "Service role full access to ai_usage_analytics" ON public.ai_usage_analytics;
 CREATE POLICY "Service role full access to ai_usage_analytics"
 ON public.ai_usage_analytics FOR ALL
 USING (auth.role() = 'service_role')
@@ -22,6 +28,7 @@ WITH CHECK (auth.role() = 'service_role');
 
 -- Update existing policies to properly restrict SELECT
 DROP POLICY IF EXISTS "Users can view their own analytics" ON public.ai_usage_analytics;
+-- STORAGE_BLOCK_START
 CREATE POLICY "Users can view their own analytics"
 ON public.ai_usage_analytics FOR SELECT
 USING (user_id = auth.uid());
@@ -29,6 +36,8 @@ USING (user_id = auth.uid());
 -- 3. Fix model_benchmarks - only admin/service role access
 DROP POLICY IF EXISTS "System can write model_benchmarks" ON public.model_benchmarks;
 
+-- STORAGE_BLOCK_START
+DROP POLICY IF EXISTS "Service role can manage model_benchmarks" ON public.model_benchmarks;
 CREATE POLICY "Service role can manage model_benchmarks"
 ON public.model_benchmarks FOR ALL
 USING (auth.role() = 'service_role')
@@ -37,6 +46,7 @@ WITH CHECK (auth.role() = 'service_role');
 -- 4. Fix dev_logs - remove NULL job_id access
 DROP POLICY IF EXISTS "Users can read logs for their jobs" ON public.dev_logs;
 
+-- STORAGE_BLOCK_START
 CREATE POLICY "Users can read logs for their jobs"
 ON public.dev_logs FOR SELECT
 USING (
@@ -51,6 +61,7 @@ USING (
 -- 5. Fix analysis_cache - prevent NULL project_id entries
 DROP POLICY IF EXISTS "Users manage own analysis_cache" ON public.analysis_cache;
 
+-- STORAGE_BLOCK_START
 CREATE POLICY "Users manage own analysis_cache"
 ON public.analysis_cache FOR ALL
 USING (

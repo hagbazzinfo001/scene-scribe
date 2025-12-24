@@ -119,7 +119,7 @@ export function useTokens() {
         },
         body: {
           packageId,
-          callbackUrl: `${window.location.origin}/payment/verify`,
+          callbackUrl: `${window.location.origin}/payment`,
         },
       });
 

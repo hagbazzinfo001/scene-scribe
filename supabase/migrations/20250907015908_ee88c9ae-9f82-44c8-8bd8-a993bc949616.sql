@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS public.user_assets (
 
 -- RLS for user_assets
 ALTER TABLE public.user_assets ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users manage own user_assets" ON public.user_assets;
 CREATE POLICY "Users manage own user_assets" 
 ON public.user_assets 
 FOR ALL 
@@ -121,9 +122,24 @@ ALTER TABLE public.user_assets REPLICA IDENTITY FULL;
 ALTER TABLE public.notifications REPLICA IDENTITY FULL;
 
 -- Add tables to realtime publication
-ALTER PUBLICATION supabase_realtime ADD TABLE public.jobs;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.user_assets;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.jobs;
+EXCEPTION WHEN duplicate_object THEN
+  NULL;
+END $$;
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.user_assets;
+EXCEPTION WHEN duplicate_object THEN
+  NULL;
+END $$;
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+EXCEPTION WHEN duplicate_object THEN
+  NULL;
+END $$;
 
 -- Create model_benchmarks table for storing model performance data
 CREATE TABLE IF NOT EXISTS public.model_benchmarks (
@@ -142,11 +158,13 @@ CREATE TABLE IF NOT EXISTS public.model_benchmarks (
 
 -- RLS for model_benchmarks (admin-readable, system-writable)
 ALTER TABLE public.model_benchmarks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Anyone can read model_benchmarks" ON public.model_benchmarks;
 CREATE POLICY "Anyone can read model_benchmarks" 
 ON public.model_benchmarks 
 FOR SELECT 
 USING (true);
 
+DROP POLICY IF EXISTS "System can write model_benchmarks" ON public.model_benchmarks;
 CREATE POLICY "System can write model_benchmarks" 
 ON public.model_benchmarks 
 FOR INSERT 
@@ -168,6 +186,7 @@ CREATE TABLE IF NOT EXISTS public.dev_logs (
 
 -- RLS for dev_logs
 ALTER TABLE public.dev_logs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can read logs for their jobs" ON public.dev_logs;
 CREATE POLICY "Users can read logs for their jobs" 
 ON public.dev_logs 
 FOR SELECT 
@@ -179,6 +198,7 @@ USING (
     )
 );
 
+DROP POLICY IF EXISTS "System can write dev_logs" ON public.dev_logs;
 CREATE POLICY "System can write dev_logs" 
 ON public.dev_logs 
 FOR INSERT 

@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS public.mesh_assets (
 ALTER TABLE public.mesh_assets ENABLE ROW LEVEL SECURITY;
 
 -- RLS policy for mesh_assets - users can only access their own assets
+-- STORAGE_BLOCK_START
+DROP POLICY IF EXISTS "Users can manage their own mesh assets" ON public.mesh_assets;
 CREATE POLICY "Users can manage their own mesh assets" 
 ON public.mesh_assets 
 FOR ALL 
@@ -35,6 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_mesh_assets_owner ON public.mesh_assets(owner_id)
 CREATE INDEX IF NOT EXISTS idx_mesh_assets_status ON public.mesh_assets(status);
 
 -- Add trigger for updated_at on mesh_assets
+DROP TRIGGER IF EXISTS update_mesh_assets_updated_at ON public.mesh_assets;
 CREATE TRIGGER update_mesh_assets_updated_at
 BEFORE UPDATE ON public.mesh_assets
 FOR EACH ROW

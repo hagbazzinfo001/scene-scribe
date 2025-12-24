@@ -6,7 +6,8 @@ VALUES ('video-uploads', 'video-uploads', false, '{"video/*"}')
 ON CONFLICT (id) DO NOTHING;
 
 -- Storage policies for audio-uploads bucket
-CREATE POLICY IF NOT EXISTS "Users can upload their own audio files"
+DROP POLICY IF EXISTS "Users can upload their own audio files" ON storage.objects;
+CREATE POLICY "Users can upload their own audio files"
 ON storage.objects 
 FOR INSERT 
 WITH CHECK (
@@ -14,7 +15,8 @@ WITH CHECK (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
-CREATE POLICY IF NOT EXISTS "Users can view their own audio files"
+DROP POLICY IF EXISTS "Users can view their own audio files" ON storage.objects;
+CREATE POLICY "Users can view their own audio files"
 ON storage.objects 
 FOR SELECT 
 USING (
@@ -22,7 +24,8 @@ USING (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
-CREATE POLICY IF NOT EXISTS "Users can update their own audio files"
+DROP POLICY IF EXISTS "Users can update their own audio files" ON storage.objects;
+CREATE POLICY "Users can update their own audio files"
 ON storage.objects 
 FOR UPDATE 
 USING (
@@ -30,7 +33,8 @@ USING (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
-CREATE POLICY IF NOT EXISTS "Users can delete their own audio files"
+DROP POLICY IF EXISTS "Users can delete their own audio files" ON storage.objects;
+CREATE POLICY "Users can delete their own audio files"
 ON storage.objects 
 FOR DELETE 
 USING (
@@ -39,7 +43,8 @@ USING (
 );
 
 -- Storage policies for video-uploads bucket
-CREATE POLICY IF NOT EXISTS "Users can upload their own video files"
+DROP POLICY IF EXISTS "Users can upload their own video files" ON storage.objects;
+CREATE POLICY "Users can upload their own video files"
 ON storage.objects 
 FOR INSERT 
 WITH CHECK (
@@ -47,7 +52,8 @@ WITH CHECK (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
-CREATE POLICY IF NOT EXISTS "Users can view their own video files"
+DROP POLICY IF EXISTS "Users can view their own video files" ON storage.objects;
+CREATE POLICY "Users can view their own video files"
 ON storage.objects 
 FOR SELECT 
 USING (
@@ -55,7 +61,8 @@ USING (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
-CREATE POLICY IF NOT EXISTS "Users can update their own video files"
+DROP POLICY IF EXISTS "Users can update their own video files" ON storage.objects;
+CREATE POLICY "Users can update their own video files"
 ON storage.objects 
 FOR UPDATE 
 USING (
@@ -63,7 +70,8 @@ USING (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
-CREATE POLICY IF NOT EXISTS "Users can delete their own video files"
+DROP POLICY IF EXISTS "Users can delete their own video files" ON storage.objects;
+CREATE POLICY "Users can delete their own video files"
 ON storage.objects 
 FOR DELETE 
 USING (
@@ -72,7 +80,8 @@ USING (
 );
 
 -- Storage policies for vfx-assets bucket
-CREATE POLICY IF NOT EXISTS "Users can upload their own vfx assets"
+DROP POLICY IF EXISTS "Users can upload their own vfx assets" ON storage.objects;
+CREATE POLICY "Users can upload their own vfx assets"
 ON storage.objects 
 FOR INSERT 
 WITH CHECK (
@@ -80,7 +89,8 @@ WITH CHECK (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
-CREATE POLICY IF NOT EXISTS "Users can view their own vfx assets"
+DROP POLICY IF EXISTS "Users can view their own vfx assets" ON storage.objects;
+CREATE POLICY "Users can view their own vfx assets"
 ON storage.objects 
 FOR SELECT 
 USING (
@@ -88,7 +98,8 @@ USING (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
-CREATE POLICY IF NOT EXISTS "Users can update their own vfx assets"
+DROP POLICY IF EXISTS "Users can update their own vfx assets" ON storage.objects;
+CREATE POLICY "Users can update their own vfx assets"
 ON storage.objects 
 FOR UPDATE 
 USING (
@@ -96,7 +107,8 @@ USING (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
-CREATE POLICY IF NOT EXISTS "Users can delete their own vfx assets"
+DROP POLICY IF EXISTS "Users can delete their own vfx assets" ON storage.objects;
+CREATE POLICY "Users can delete their own vfx assets"
 ON storage.objects 
 FOR DELETE 
 USING (
@@ -120,17 +132,20 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for notifications
-CREATE POLICY IF NOT EXISTS "Users can view their own notifications"
+DROP POLICY IF EXISTS "Users can view their own notifications" ON public.notifications;
+CREATE POLICY "Users can view their own notifications"
 ON public.notifications 
 FOR SELECT 
 USING (user_id = auth.uid());
 
-CREATE POLICY IF NOT EXISTS "Users can update their own notifications"
+DROP POLICY IF EXISTS "Users can update their own notifications" ON public.notifications;
+CREATE POLICY "Users can update their own notifications"
 ON public.notifications 
 FOR UPDATE 
 USING (user_id = auth.uid());
 
-CREATE POLICY IF NOT EXISTS "System can create notifications for users"
+DROP POLICY IF EXISTS "System can create notifications for users" ON public.notifications;
+CREATE POLICY "System can create notifications for users"
 ON public.notifications 
 FOR INSERT 
 WITH CHECK (true);
@@ -160,17 +175,20 @@ CREATE TABLE IF NOT EXISTS public.user_settings (
 ALTER TABLE public.user_settings ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for user_settings
-CREATE POLICY IF NOT EXISTS "Users can view their own settings"
+DROP POLICY IF EXISTS "Users can view their own settings" ON public.user_settings;
+CREATE POLICY "Users can view their own settings"
 ON public.user_settings 
 FOR SELECT 
 USING (user_id = auth.uid());
 
-CREATE POLICY IF NOT EXISTS "Users can update their own settings"
+DROP POLICY IF EXISTS "Users can update their own settings" ON public.user_settings;
+CREATE POLICY "Users can update their own settings"
 ON public.user_settings 
 FOR UPDATE 
 USING (user_id = auth.uid());
 
-CREATE POLICY IF NOT EXISTS "Users can insert their own settings"
+DROP POLICY IF EXISTS "Users can insert their own settings" ON public.user_settings;
+CREATE POLICY "Users can insert their own settings"
 ON public.user_settings 
 FOR INSERT 
 WITH CHECK (user_id = auth.uid());

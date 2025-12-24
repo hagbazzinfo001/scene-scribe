@@ -1,4 +1,4 @@
-project_id = "lmxspzfqhmdnqxtzusfy"
+project_id = "atwqneesdaeuhsylvsnr"
 
 [api]
 enabled = true
@@ -9,10 +9,8 @@ max_rows = 1000
 
 [auth]
 enabled = true
-port = 9999
-site_url = "https://lmxspzfqhmdnqxtzusfy.supabase.co"
+site_url = "https://atwqneesdaeuhsylvsnr.supabase.co"
 additional_redirect_urls = ["https://localhost:3000"]
-jwt_secret = "super-secret-jwt-token-with-at-least-32-characters-long"
 
 [functions.ai-assistant]
 verify_jwt = false
