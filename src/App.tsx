@@ -22,6 +22,7 @@ import Storyboard from "./pages/Storyboard";
 import ScriptBreakdown from "./pages/ScriptBreakdown";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import ResetPassword from "./pages/ResetPassword";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ThemeProvider } from 'next-themes';
 
@@ -71,6 +72,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/waitlist" element={<Waitlist />} />
                 <Route path="/studio-waitlist" element={<StudioWaitlist />} />
                 <Route path="/dashboard" element={<Dashboard />} />
