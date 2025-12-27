@@ -195,7 +195,7 @@ export default function Admin() {
       <div className="flex-1 flex items-center justify-center">
         <Card className="w-[400px]">
           <CardContent className="pt-6 text-center">
-            <p className="text-muted-foreground">Please sign in to access the admin dashboard.</p>
+            <p className="text-muted-foreground">{t('sign_in_to_access')}</p>
           </CardContent>
         </Card>
       </div>
@@ -207,7 +207,8 @@ export default function Admin() {
       <div className="flex-1 flex items-center justify-center">
         <Card className="w-[400px]">
           <CardContent className="pt-6 text-center">
-            <p className="text-muted-foreground">Verifying permissions...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">{t('verifying_permissions')}</p>
           </CardContent>
         </Card>
       </div>
@@ -220,9 +221,9 @@ export default function Admin() {
         <Card className="w-[400px]">
           <CardContent className="pt-6 text-center">
             <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
+            <h3 className="text-lg font-semibold mb-2">{t('access_denied')}</h3>
             <p className="text-muted-foreground">
-              You don't have permission to access the admin dashboard.
+              {t('no_admin_permission')}
             </p>
           </CardContent>
         </Card>
@@ -233,9 +234,9 @@ export default function Admin() {
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8">
       <div>
-        <h2 className="text-3xl font-bold text-foreground">{t('admin')} Dashboard</h2>
+        <h2 className="text-3xl font-bold text-foreground">{t('admin_dashboard')}</h2>
         <p className="text-muted-foreground">
-          Real-time system monitoring and management
+          {t('realtime_monitoring')}
         </p>
       </div>
 
